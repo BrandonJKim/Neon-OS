@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon OS</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        #nav-ui {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .toggle-btn {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: 300;
+            font-style: italic;
+            letter-spacing: 2px;
+            transition: all 0.4s ease;
+        }
+
+        #silk-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            /* HD Bloom Effect */
+            filter: drop-shadow(0 0 8px currentColor) brightness(1.2);
+        }
+
+        #lava-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: none;
+            filter: blur(20px) contrast(30);
+            background: #0f051d;
+        }
+
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+    <div id="nav-ui">
+        <button class="toggle-btn" onclick="toggleMode()"><i>Neon OS</i> : SWITCH</button>
+    </div>
+
+    <div id="lava-container">
+        <canvas id="lavaCanvas"></canvas>
+    </div>
+
+    <div id="silk-container">
+        <canvas id="silkCanvas"></canvas>
+    </div>
+
+    <script>
+        const lavaCanvas = document.getElementById('lavaCanvas');
+        const silkCanvas = document.getElementById('silkCanvas');
+        const lavaCtx = lavaCanvas.getContext('2d');
+        const silkCtx = silkCanvas.getContext('2d');
+        
+        let currentMode = 'silk';
+        let silkTime = 0;
+        let ghostTrails = []; 
+
+        function resize() {
+            lavaCanvas.width = silkCanvas.width = window.innerWidth;
+            lavaCanvas.height = silkCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- Lava Lamp ---
+        let bubbles = [];
+        class Bubble {
+            constructor() { this.init(); this.y = Math.random() * lavaCanvas.height; }
+            init() {
+                this.size = Math.random() * 100 + 60;
+                this.x = Math.random() * lavaCanvas.width;
+                this.y = lavaCanvas.height + this.size;
+                this.speed = Math.random() * 0.5 + 0.2;
+            }
+            update() {
+                this.y -= this.speed;
+                if (this.y < -this.size * 2) this.init();
+            }
+            draw() {
+                lavaCtx.beginPath();
+                lavaCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                lavaCtx.fillStyle = "#ff4500";
+                lavaCtx.fill();
+            }
+        }
+
+        // --- Neon Silk ---
+        let lines = [];
+        class NeonLine {
+            constructor() { this.init(); }
+            init() {
+                this.x = Math.random() * silkCanvas.width;
+                this.y = Math.random() * silkCanvas.height;
+                this.history = [];
+                this.maxHistory = 100;
+                this.age = 0;
+                this.maxAge = Math.random() * 500 + 300;
+                const colors = ['#00f2ff', '#00ff9f', '#ff0080', '#7000ff'];
+                this.color = colors[Math.floor(Math.random() * colors.length)];
+            }
+            update() {
+                this.history.push({x: this.x, y: this.y});
+                if(this.history.length > this.maxHistory) this.history.shift();
+
+                let angle = (Math.sin(this.x * 0.002) + Math.cos(this.y * 0.002) + silkTime) * Math.PI * 2;
+                this.x += Math.cos(angle) * 3.5;
+                this.y += Math.sin(angle) * 3.5;
+                
+                this.age++;
+                if (this.age > this.maxAge || this.x < -50 || this.x > silkCanvas.width + 50 || this.y < -50 || this.y > silkCanvas.height + 50) {
+                    ghostTrails.push({segments: [...this.history], color: this.color});
+                    this.init();
+                }
+            }
+            draw() {
+                this.drawSegments(this.history, this.color);
+            }
+            drawSegments(segments, color) {
+                if (segments.length < 2) return;
+                silkCtx.globalCompositeOperation = 'lighter';
+                for (let i = 1; i < segments.length; i++) {
+                    let opacity = (i / segments.length) * 0.8;
+                    silkCtx.beginPath();
+                    silkCtx.moveTo(segments[i-1].x, segments[i-1].y);
+                    silkCtx.lineTo(segments[i].x, segments[i].y);
+                    silkCtx.strokeStyle = color;
+                    silkCtx.globalAlpha = opacity;
+                    silkCtx.lineWidth = 3;
+                    silkCtx.stroke();
+                }
+                silkCtx.globalAlpha = 1;
+            }
+        }
+
+        function initSystems() {
+            bubbles = Array.from({length: 10}, () => new Bubble());
+            lines = Array.from({length: 8}, () => new NeonLine());
+        }
+
+        function loop() {
+            if (currentMode === 'lava') {
+                lavaCtx.fillStyle = "#0f051d";
+                lavaCtx.fillRect(0, 0, lavaCanvas.width, lavaCanvas.height);
+                bubbles.forEach(b => { b.update(); b.draw(); });
+            } else {
+                silkCtx.clearRect(0, 0, silkCanvas.width, silkCanvas.height);
+                for (let i = ghostTrails.length - 1; i >= 0; i--) {
+                    let g = ghostTrails[i];
+                    lines[0].drawSegments(g.segments, g.color);
+                    g.segments.shift();
+                    if (g.segments.length === 0) ghostTrails.splice(i, 1);
+                }
+                lines.forEach(l => { 
+                    l.update(); 
+                    l.draw(); 
+                });
+                silkTime += 0.0018;
+            }
+            requestAnimationFrame(loop);
+        }
+
+        function toggleMode() {
+            const lavaLayer = document.getElementById('lava-container');
+            const silkLayer = document.getElementById('silk-container');
+            if (currentMode === 'silk') {
+                currentMode = 'lava';
+                lavaLayer.style.display = 'block';
+                silkLayer.style.display = 'none';
+            } else {
+                currentMode = 'silk';
+                lavaLayer.style.display = 'none';
+                silkLayer.style.display = 'block';
+            }
+        }
+
+        initSystems();
+        loop();
+    </script>
+</body>
+</html>
