@@ -32,6 +32,28 @@
         #silk-container { display: block; filter: drop-shadow(0 0 8px #00f2ff); }
         #lava-container { filter: blur(20px) contrast(30); background: #0f051d; }
         canvas { display: block; }
+
+        /* --- CHESS MODULE STYLES --- */
+        #chess-container { flex-direction: column; justify-content: center; align-items: center; background: radial-gradient(circle, #0a1520 0%, #000 100%); }
+        .chess-setup { z-index: 1100; text-align: center; background: rgba(0,0,0,0.9); padding: 30px; border: 1px solid #00f2ff; }
+        .chess-btn { background: none; border: 1px solid #00f2ff; color: #00f2ff; padding: 10px 20px; cursor: pointer; font-family: inherit; margin: 5px; transition: 0.3s; }
+        .chess-btn:hover, .chess-btn.active { background: #00f2ff; color: #000; box-shadow: 0 0 15px #00f2ff; }
+        
+        .timer-display { display: flex; justify-content: space-between; width: 520px; margin-bottom: 10px; color: #00f2ff; font-size: 18px; letter-spacing: 2px; }
+        .chessboard { width: 520px; height: 520px; display: grid; grid-template-columns: repeat(8, 1fr); border: 4px solid #00f2ff; position: relative; }
+        .square { width: 65px; height: 65px; display: flex; justify-content: center; align-items: center; position: relative; cursor: pointer; }
+        .white-sq { background-color: rgba(0, 242, 255, 0.1); }
+        .black-sq { background-color: rgba(2, 5, 10, 0.8); }
+        .selected { background-color: rgba(0, 242, 255, 0.6) !important; }
+
+        .piece { width: 55px; height: 55px; background-size: contain; background-repeat: no-repeat; pointer-events: none; z-index: 5; }
+        .wood-w { filter: sepia(0.6) saturate(2.5) brightness(1.1) contrast(1.2) drop-shadow(0 0 8px #00f2ff); }
+        .wood-b { filter: sepia(1) saturate(0.5) brightness(0.4) contrast(1.6) drop-shadow(0 0 8px #ff0080); }
+        
+        .eval-icon { position: absolute; top: -5px; right: -5px; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; color: #fff; z-index: 10; border: 2px solid #000; pointer-events: none; }
+
+        #win-banner { position: absolute; top: 100px; width: 100%; height: 60px; background: rgba(0, 242, 255, 0.9); display: none; justify-content: center; align-items: center; z-index: 1200; color: #000; font-weight: bold; letter-spacing: 5px; }
+        #exit-match { margin-top: 20px; border-color: #ff4141; color: #ff4141; display: none; }
     </style>
 </head>
 <body>
@@ -59,39 +81,49 @@
             <div class="nav-text" id="btn-rain" onclick="setMode('rain')">Rain</div>
             <div class="nav-text" id="btn-ripple" onclick="setMode('ripple')">Ripple</div>
             <div class="nav-text" id="btn-ocean" onclick="setMode('ocean')">Ocean</div>
+            <div class="nav-text" id="btn-chess" onclick="setMode('chess')">Chess</div>
         </div>
+        
         <div id="silk-container" class="canvas-container"><canvas id="silkCanvas"></canvas></div>
         <div id="lava-container" class="canvas-container"><canvas id="lavaCanvas"></canvas></div>
         <div id="rain-container" class="canvas-container"><canvas id="rainCanvas"></canvas></div>
         <div id="ripple-container" class="canvas-container"><canvas id="rippleCanvas"></canvas></div>
         <div id="ocean-container" class="canvas-container"><canvas id="oceanCanvas"></canvas></div>
+
+        <div id="chess-container" class="canvas-container" style="display:none; flex-direction:column;">
+            <div id="win-banner">CHECKMATE - SYSTEM CAPTURED</div>
+            <div id="chess-setup-menu" class="chess-setup">
+                <h3 style="color:#00f2ff; margin-top:0;">CHESS_CORE_v2.0</h3>
+                <button class="chess-btn" onclick="setChessTime(300)">5 MIN</button>
+                <button class="chess-btn" onclick="setChessTime(600)">10 MIN</button>
+                <button class="chess-btn" onclick="setChessTime(Infinity)">INFINITE</button>
+                <br><br>
+                <button class="chess-btn" style="width: 100%;" onclick="startChessGame()">START_MATCH</button>
+            </div>
+            <div id="chess-board-wrapper" style="display:none; text-align: center;">
+                <div class="timer-display">
+                    <span id="black-clock">AI: --:--</span>
+                    <span id="white-clock">USER: --:--</span>
+                </div>
+                <div class="chessboard" id="board"></div>
+                <button id="exit-match" class="chess-btn" onclick="exitChessMatch()">TERMINATE_SESSION</button>
+            </div>
+        </div>
     </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
 
     <script>
         // --- GLOBAL STATE ---
         let currentMode = 'silk';
         let silkTime = 0;
         let ghostTrails = [];
-        const canvases = {
-            silk: document.getElementById('silkCanvas'),
-            lava: document.getElementById('lavaCanvas'),
-            rain: document.getElementById('rainCanvas'),
-            ripple: document.getElementById('rippleCanvas'),
-            ocean: document.getElementById('oceanCanvas')
-        };
-        const ctxs = {};
-        Object.keys(canvases).forEach(k => ctxs[k] = canvases[k].getContext('2d'));
+        const canvases = { silk: document.getElementById('silkCanvas'), lava: document.getElementById('lavaCanvas'), rain: document.getElementById('rainCanvas'), ripple: document.getElementById('rippleCanvas'), ocean: document.getElementById('oceanCanvas') };
+        const ctxs = {}; Object.keys(canvases).forEach(k => ctxs[k] = canvases[k].getContext('2d'));
 
-        // --- GATEKEEPER LOGIC ---
+        // --- GATEKEEPER ---
         const passInput = document.getElementById('pass-input');
-        passInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                const val = passInput.value.toLowerCase().trim();
-                if (val === 'neonos' || val === 'ambience') bootSystem(val);
-                else passInput.value = '';
-            }
-        });
-
+        passInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { const val = passInput.value.toLowerCase().trim(); if (val === 'neonos' || val === 'ambience') bootSystem(val); else passInput.value = ''; } });
         function bootSystem(type) {
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('loading-screen').style.display = 'flex';
@@ -99,204 +131,164 @@
             let p = 0;
             const interval = setInterval(() => {
                 p += Math.random() * 8;
-                if (p >= 100) {
-                    p = 100; clearInterval(interval);
-                    setTimeout(() => {
-                        document.getElementById('loading-screen').style.display = 'none';
-                        if (type === 'neonos') initMainOS();
-                        else initAmbience();
-                    }, 600);
-                }
+                if (p >= 100) { p = 100; clearInterval(interval); setTimeout(() => { document.getElementById('loading-screen').style.display = 'none'; if (type === 'neonos') initMainOS(); else initAmbience(); }, 600); }
                 document.getElementById('load-bar').style.width = p + '%';
                 document.getElementById('load-msg').innerText = messages[Math.floor(p/34)] || "OS_READY";
             }, 80);
         }
 
-        // --- AMBIENCE SYSTEM ---
+        // --- AMBIENCE ---
         let gradIdx = 0;
-        const spectra = [
-            'linear-gradient(45deg, #0f0c29, #302b63, #24243e)',
-            'radial-gradient(circle, #000428, #004e92)',
-            'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)',
-            'radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%)'
-        ];
-        function initAmbience() {
-            document.getElementById('ambience-container').style.display = 'block';
-            document.getElementById('cycle-btn').style.display = 'block';
-            cycleAmbience();
-        }
-        function cycleAmbience() {
-            document.getElementById('ambience-container').style.background = spectra[gradIdx];
-            gradIdx = (gradIdx + 1) % spectra.length;
-        }
+        const spectra = ['linear-gradient(45deg, #0f0c29, #302b63, #24243e)', 'radial-gradient(circle, #000428, #004e92)', 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', 'radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%)'];
+        function initAmbience() { document.getElementById('ambience-container').style.display = 'block'; document.getElementById('cycle-btn').style.display = 'block'; cycleAmbience(); }
+        function cycleAmbience() { document.getElementById('ambience-container').style.background = spectra[gradIdx]; gradIdx = (gradIdx + 1) % spectra.length; }
 
-        // --- MAIN OS INIT ---
-        function initMainOS() {
-            document.getElementById('main-os').style.display = 'block';
-            resize();
-            setupRain();
-            setupRipple();
-            setupOcean();
-            loop();
-        }
-
-        function resize() {
-            Object.values(canvases).forEach(c => {
-                c.width = window.innerWidth;
-                c.height = window.innerHeight;
-            });
-            if(currentMode === 'ripple') setupRipple();
-            if(currentMode === 'ocean') setupOcean();
-        }
+        // --- MAIN OS ---
+        function initMainOS() { document.getElementById('main-os').style.display = 'block'; resize(); setupRain(); setupRipple(); setupOcean(); loop(); }
+        function resize() { Object.values(canvases).forEach(c => { c.width = window.innerWidth; c.height = window.innerHeight; }); if(currentMode === 'ripple') setupRipple(); if(currentMode === 'ocean') setupOcean(); }
         window.addEventListener('resize', resize);
 
-        // --- ENGINE 1: SILK (FADE & DISAPPEAR LOGIC) ---
-        let silk_lines = Array.from({length: 12}, () => ({
-            x: Math.random() * window.innerWidth, 
-            y: Math.random() * window.innerHeight,
-            hist: [], age: 0, max: Math.random() * 600 + 400,
-            dead: false,
-            c: ['#00f2ff', '#7000ff', '#ff0080'][Math.floor(Math.random() * 3)],
-            update() {
-                if(this.dead) return;
-                this.hist.push({x: this.x, y: this.y}); if(this.hist.length > 100) this.hist.shift();
-                let angle = (Math.sin(this.x * 0.002) + Math.cos(this.y * 0.002) + silkTime) * Math.PI * 2;
-                this.x += Math.cos(angle) * 3.8; this.y += Math.sin(angle) * 3.8;
-                this.age++; 
-                if (this.age > this.max) { 
-                    ghostTrails.push({s: [...this.hist], c: this.c, o: 1}); 
-                    this.dead = true; // No longer respawning
+        // --- ORIGINAL ENGINES ---
+        let silk_lines = Array.from({length: 12}, () => createSilkLine());
+        function createSilkLine() {
+            return {
+                x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight, hist: [], age: 0, max: Math.random() * 600 + 400,
+                c: ['#00f2ff', '#7000ff', '#ff0080'][Math.floor(Math.random() * 3)],
+                update() {
+                    this.hist.push({x: this.x, y: this.y}); if(this.hist.length > 100) this.hist.shift();
+                    let angle = (Math.sin(this.x * 0.002) + Math.cos(this.y * 0.002) + silkTime) * Math.PI * 2;
+                    this.x += Math.cos(angle) * 3.8; this.y += Math.sin(angle) * 3.8;
+                    this.age++; if (this.age > this.max) { ghostTrails.push({s: [...this.hist], c: this.c, o: 1}); Object.assign(this, createSilkLine()); }
                 }
-            }
-        }));
-
-        // --- ENGINE 2: LAVA ---
-        let lava_b = Array.from({length: 15}, () => ({
-            x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight,
-            r: Math.random() * 70 + 40, vy: Math.random() * 0.8 + 0.4,
-            update() { this.y -= this.vy; if(this.y < -this.r*2) this.y = window.innerHeight + this.r; }
-        }));
-
-        // --- ENGINE 3: RAIN ---
+            };
+        }
+        let lava_b = Array.from({length: 15}, () => ({ x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight, r: Math.random() * 70 + 40, vy: Math.random() * 0.8 + 0.4, update() { this.y -= this.vy; if(this.y < -this.r*2) this.y = window.innerHeight + this.r; } }));
         let rain_drops = [];
-        function setupRain() {
-            rain_drops = [];
-            for(let i=0; i<window.innerWidth; i+=25) {
-                rain_drops.push({ x: i, y: Math.random() * -window.innerHeight, s: Math.random() * 6 + 3 });
-            }
-        }
-
-        // --- ENGINE 4: RIPPLE (REVERTED TO HIGH-DETAIL VERSION) ---
+        function setupRain() { rain_drops = []; for(let i=0; i<window.innerWidth; i+=25) rain_drops.push({ x: i, y: Math.random() * -window.innerHeight, s: Math.random() * 6 + 3 }); }
         let ripple_grid = [];
-        function setupRipple() {
-            ripple_grid = [];
-            const spacing = 24;
-            for (let x=0; x<window.innerWidth; x+=spacing) {
-                for (let y=0; y<window.innerHeight; y+=spacing) {
-                    ripple_grid.push({ox:x, oy:y, x:x, y:y, vx:0, vy:0});
-                }
-            }
-        }
-        window.addEventListener('mousemove', (e) => {
-            if (currentMode === 'ripple') {
-                ripple_grid.forEach(p => {
-                    let dx = p.x - e.clientX, dy = p.y - e.clientY, d = Math.sqrt(dx*dx+dy*dy);
-                    if(d<180) { let f = (180-d)/180; p.vx += (dx/d)*f*35; p.vy += (dy/d)*f*35; }
-                });
-            }
-        });
-
-        // --- ENGINE 5: HYPER-OCEAN ---
-        let oceanT = 0;
-        let oceanStars = [];
-        function setupOcean() {
-            oceanStars = [];
-            for(let i=0; i<250; i++) {
-                oceanStars.push({ x: Math.random() * window.innerWidth, y: Math.random() * (window.innerHeight * 0.55), s: Math.random() * 1.8, o: Math.random() });
-            }
-        }
-
+        function setupRipple() { ripple_grid = []; for (let x=0; x<window.innerWidth; x+=24) for (let y=0; y<window.innerHeight; y+=24) ripple_grid.push({ox:x, oy:y, x:x, y:y, vx:0, vy:0}); }
+        window.addEventListener('mousemove', (e) => { if (currentMode === 'ripple') ripple_grid.forEach(p => { let dx = p.x - e.clientX, dy = p.y - e.clientY, d = Math.sqrt(dx*dx+dy*dy); if(d<180) { let f = (180-d)/180; p.vx += (dx/d)*f*35; p.vy += (dy/d)*f*35; } }); });
+        let oceanT = 0, oceanStars = [];
+        function setupOcean() { oceanStars = []; for(let i=0; i<250; i++) oceanStars.push({ x: Math.random() * window.innerWidth, y: Math.random() * (window.innerHeight * 0.55), s: Math.random() * 1.8, o: Math.random() }); }
         function drawOcean() {
-            const ctx = ctxs.ocean, w = canvases.ocean.width, h = canvases.ocean.height;
-            ctx.fillStyle = '#01040a'; ctx.fillRect(0,0,w,h);
-            
-            oceanStars.forEach(s => {
-                let blink = Math.sin(oceanT * 2.5 + s.o * 12) * 0.5 + 0.5;
-                ctx.fillStyle = `rgba(255, 255, 255, ${blink * 0.9})`;
-                ctx.beginPath(); ctx.arc(s.x, s.y, s.s, 0, Math.PI*2); ctx.fill();
-            });
+            const ctx = ctxs.ocean, w = canvases.ocean.width, h = canvases.ocean.height; ctx.fillStyle = '#01040a'; ctx.fillRect(0,0,w,h);
+            oceanStars.forEach(s => { let blink = Math.sin(oceanT * 2.5 + s.o * 12) * 0.5 + 0.5; ctx.fillStyle = `rgba(255, 255, 255, ${blink * 0.9})`; ctx.beginPath(); ctx.arc(s.x, s.y, s.s, 0, Math.PI*2); ctx.fill(); });
+            oceanT += 0.007; for(let i=0; i<8; i++) { ctx.beginPath(); ctx.moveTo(0, h); let amp = 22 + (i * 14), freq = 0.0028 + (i * 0.0002), speed = oceanT * (1.1 + (i * 0.12)); ctx.fillStyle = `rgba(0, ${25 + i*28}, ${60 + i*22}, ${0.12 + i*0.09})`; for(let x=0; x<=w; x+=3.5) { let y = h*0.68 + Math.sin(x*freq + speed) * amp + Math.cos(x*0.004 - speed*0.6) * (amp*0.5) + Math.sin(x*0.012 + speed*1.8) * 6; ctx.lineTo(x, y + i*48); } ctx.lineTo(w, h); ctx.fill(); }
+        }
 
-            oceanT += 0.007;
-            for(let i=0; i<8; i++) {
-                ctx.beginPath();
-                ctx.moveTo(0, h);
-                let amp = 22 + (i * 14);
-                let freq = 0.0028 + (i * 0.0002);
-                let speed = oceanT * (1.1 + (i * 0.12));
-                ctx.fillStyle = `rgba(0, ${25 + i*28}, ${60 + i*22}, ${0.12 + i*0.09})`;
-                for(let x=0; x<=w; x+=3.5) {
-                    let y = h*0.68 + Math.sin(x*freq + speed) * amp;
-                    y += Math.cos(x*0.004 - speed*0.6) * (amp*0.5);
-                    y += Math.sin(x*0.012 + speed*1.8) * 6;
-                    ctx.lineTo(x, y + i*48);
+        // --- CHESS LOGIC ---
+        let chessGame = new Chess();
+        let selectedSq = null;
+        let whiteTime = 600, blackTime = 600, isInfinite = false, chessTimer = null;
+        let lastEval = 0;
+        let evalMarker = { square: null, type: null, color: null };
+
+        const weights = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
+        function evalBoard(g) {
+            let total = 0;
+            g.board().forEach((row, r) => row.forEach((p, c) => {
+                if (p) {
+                    let val = weights[p.type];
+                    total += (p.color === 'w' ? val : -val);
                 }
-                ctx.lineTo(w, h); ctx.fill();
+            }));
+            return total;
+        }
+
+        function minimax(g, depth, alpha, beta, isMax) {
+            if (depth === 0) return evalBoard(g);
+            let moves = g.moves();
+            if (isMax) {
+                let best = -99999;
+                for (let m of moves) { g.move(m); best = Math.max(best, minimax(g, depth-1, alpha, beta, false)); g.undo(); alpha = Math.max(alpha, best); if(beta <= alpha) break; }
+                return best;
+            } else {
+                let best = 99999;
+                for (let m of moves) { g.move(m); best = Math.min(best, minimax(g, depth-1, alpha, beta, true)); g.undo(); beta = Math.min(beta, best); if(beta <= alpha) break; }
+                return best;
             }
         }
 
-        // --- ANIMATION MASTER LOOP ---
+        function setChessTime(s) { isInfinite = s === Infinity; whiteTime = s; blackTime = s; }
+        function startChessGame() {
+            document.getElementById('chess-setup-menu').style.display = 'none'; document.getElementById('chess-board-wrapper').style.display = 'block'; document.getElementById('exit-match').style.display = 'inline-block';
+            renderChessBoard(); if(!isInfinite) { chessTimer = setInterval(() => { chessGame.turn() === 'w' ? whiteTime-- : blackTime--; updateChessClocks(); }, 1000); }
+        }
+        function updateChessClocks() { const fmt = (s) => isInfinite ? "INF" : `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`; document.getElementById('white-clock').innerText = `USER: ${fmt(whiteTime)}`; document.getElementById('black-clock').innerText = `AI: ${fmt(blackTime)}`; }
+
+        function renderChessBoard() {
+            const boardEl = document.getElementById('board'); boardEl.innerHTML = '';
+            chessGame.board().forEach((row, r) => {
+                row.forEach((p, c) => {
+                    const id = String.fromCharCode(97+c) + (8-r);
+                    const sq = document.createElement('div');
+                    sq.className = `square ${(r+c)%2===0?'white-sq':'black-sq'} ${selectedSq === id ? 'selected' : ''}`;
+                    sq.onclick = () => handleChessMove(id);
+                    if(p) {
+                        const div = document.createElement('div'); div.className = `piece ${p.color==='w'?'wood-w':'wood-b'}`;
+                        div.style.backgroundImage = `url(https://raw.githubusercontent.com/lichess-org/lila/master/public/piece/merida/${p.color}${p.type.toUpperCase()}.svg)`;
+                        sq.appendChild(div);
+                    }
+                    if (evalMarker.square === id) {
+                        const m = document.createElement('div'); m.className = 'eval-icon'; m.innerText = evalMarker.type; m.style.background = evalMarker.color;
+                        sq.appendChild(m);
+                    }
+                    boardEl.appendChild(sq);
+                });
+            });
+            if(chessGame.in_checkmate()) endChessMatch(chessGame.turn()==='w'?"AI WINS":"USER WINS");
+        }
+
+        function handleChessMove(id) {
+            if(chessGame.turn()==='b' || chessGame.game_over()) return;
+            if(!selectedSq) {
+                let p = chessGame.get(id); if(p && p.color === 'w') { selectedSq = id; renderChessBoard(); }
+            } else {
+                let move = chessGame.move({from: selectedSq, to: id, promotion: 'q'});
+                if(move) {
+                    let curEval = evalBoard(chessGame); let diff = curEval - lastEval;
+                    if(diff > 200) evalMarker = { square: id, type: '!!', color: '#00f2ff' };
+                    else if(diff > 50) evalMarker = { square: id, type: '!', color: '#4caf50' };
+                    else if(diff < -200) evalMarker = { square: id, type: '??', color: '#ff4141' };
+                    else evalMarker = { square: id, type: 'OK', color: '#777' };
+                    lastEval = curEval; selectedSq = null; renderChessBoard(); setTimeout(makeAIMove, 600);
+                } else { selectedSq = (chessGame.get(id)?.color === 'w') ? id : null; renderChessBoard(); }
+            }
+        }
+
+        function makeAIMove() {
+            let moves = chessGame.moves(); if(moves.length === 0) return;
+            let bestVal = 99999, bestMove = moves[0];
+            moves.forEach(m => {
+                chessGame.move(m); let v = minimax(chessGame, 2, -100000, 100000, true); chessGame.undo();
+                if(v < bestVal) { bestVal = v; bestMove = m; }
+            });
+            chessGame.move(bestMove); renderChessBoard();
+        }
+
+        function exitChessMatch() { clearInterval(chessTimer); document.getElementById('chess-board-wrapper').style.display = 'none'; document.getElementById('chess-setup-menu').style.display = 'block'; document.getElementById('exit-match').style.display = 'none'; document.getElementById('win-banner').style.display = 'none'; chessGame = new Chess(); selectedSq = null; lastEval = 0; evalMarker = {square:null}; }
+        function endChessMatch(msg) { clearInterval(chessTimer); const banner = document.getElementById('win-banner'); banner.innerText = msg; banner.style.display = 'flex'; }
+
+        // --- LOOP ---
         function loop() {
             if (currentMode === 'ocean') drawOcean();
             else if (currentMode === 'rain') {
-                ctxs.rain.fillStyle = 'rgba(0,0,0,0.18)'; ctxs.rain.fillRect(0,0,canvases.rain.width, canvases.rain.height);
-                ctxs.rain.fillStyle = '#00ff41'; ctxs.rain.font = '16px monospace';
-                rain_drops.forEach(d => {
-                    ctxs.rain.fillText(Math.round(Math.random()), d.x, d.y);
-                    d.y += d.s; if(d.y > canvases.rain.height) d.y = -40;
-                });
+                ctxs.rain.fillStyle = 'rgba(0,0,0,0.18)'; ctxs.rain.fillRect(0,0,canvases.rain.width, canvases.rain.height); ctxs.rain.fillStyle = '#00ff41'; ctxs.rain.font = '16px monospace';
+                rain_drops.forEach(d => { ctxs.rain.fillText(Math.round(Math.random()), d.x, d.y); d.y += d.s; if(d.y > canvases.rain.height) d.y = -40; });
             } else if (currentMode === 'lava') {
                 ctxs.lava.fillStyle = "#0f051d"; ctxs.lava.fillRect(0,0,canvases.lava.width, canvases.lava.height);
-                lava_b.forEach(b => {
-                    b.update(); ctxs.lava.beginPath(); ctxs.lava.arc(b.x, b.y, b.r, 0, Math.PI*2);
-                    ctxs.lava.fillStyle = "#ff4500"; ctxs.lava.fill();
-                });
+                lava_b.forEach(b => { b.update(); ctxs.lava.beginPath(); ctxs.lava.arc(b.x, b.y, b.r, 0, Math.PI*2); ctxs.lava.fillStyle = "#ff4500"; ctxs.lava.fill(); });
             } else if (currentMode === 'silk') {
                 ctxs.silk.clearRect(0,0,canvases.silk.width, canvases.silk.height);
-                ghostTrails.forEach((g, i) => {
-                    ctxs.silk.beginPath(); ctxs.silk.strokeStyle = g.c; ctxs.silk.globalAlpha = g.o;
-                    g.s.forEach((p, j) => j===0 ? ctxs.silk.moveTo(p.x, p.y) : ctxs.silk.lineTo(p.x, p.y));
-                    ctxs.silk.stroke(); 
-                    g.o -= 0.004; if(g.o <= 0) ghostTrails.splice(i,1);
-                });
-                silk_lines.forEach(l => {
-                    if(!l.dead) {
-                        l.update(); ctxs.silk.beginPath(); ctxs.silk.strokeStyle = l.c; ctxs.silk.globalAlpha = 1;
-                        l.hist.forEach((p, j) => j===0 ? ctxs.silk.moveTo(p.x, p.y) : ctxs.silk.lineTo(p.x, p.y));
-                        ctxs.silk.stroke();
-                    }
-                });
-                silkTime += 0.0015;
+                ghostTrails.forEach((g, i) => { ctxs.silk.beginPath(); ctxs.silk.strokeStyle = g.c; ctxs.silk.globalAlpha = g.o; g.s.forEach((p, j) => j===0 ? ctxs.silk.moveTo(p.x, p.y) : ctxs.silk.lineTo(p.x, p.y)); ctxs.silk.stroke(); g.o -= 0.004; if(g.o <= 0) ghostTrails.splice(i,1); });
+                silk_lines.forEach(l => { l.update(); ctxs.silk.beginPath(); ctxs.silk.strokeStyle = l.c; ctxs.silk.globalAlpha = 1; l.hist.forEach((p, j) => j===0 ? ctxs.silk.moveTo(p.x, p.y) : ctxs.silk.lineTo(p.x, p.y)); ctxs.silk.stroke(); }); silkTime += 0.0015;
             } else if (currentMode === 'ripple') {
                 ctxs.ripple.fillStyle = '#000'; ctxs.ripple.fillRect(0,0,canvases.ripple.width, canvases.ripple.height);
-                ripple_grid.forEach(p => {
-                    p.vx += (p.ox - p.x)*0.06; p.vy += (p.oy - p.y)*0.06; p.vx *= 0.85; p.vy *= 0.85; p.x += p.vx; p.y += p.vy;
-                    let s = Math.sqrt(p.vx*p.vx+p.vy*p.vy);
-                    ctxs.ripple.fillStyle = `rgb(0, ${100 + s*10}, 255)`;
-                    ctxs.ripple.beginPath(); ctxs.ripple.arc(p.x, p.y, 3.5 + s/4.5, 0, Math.PI*2); ctxs.ripple.fill();
-                });
+                ripple_grid.forEach(p => { p.vx += (p.ox - p.x)*0.06; p.vy += (p.oy - p.y)*0.06; p.vx *= 0.85; p.vy *= 0.85; p.x += p.vx; p.y += p.vy; let s = Math.sqrt(p.vx*p.vx+p.vy*p.vy); ctxs.ripple.fillStyle = `rgb(0, ${100 + s*10}, 255)`; ctxs.ripple.beginPath(); ctxs.ripple.arc(p.x, p.y, 3.5 + s/4.5, 0, Math.PI*2); ctxs.ripple.fill(); });
             }
             requestAnimationFrame(loop);
         }
-
-        function setMode(mode) {
-            currentMode = mode;
-            document.querySelectorAll('.nav-text').forEach(el => el.classList.remove('active'));
-            document.getElementById('btn-' + mode).classList.add('active');
-            Object.keys(canvases).forEach(k => document.getElementById(k + '-container').style.display = k === mode ? 'block' : 'none');
-            if (mode === 'rain') setupRain();
-            if (mode === 'ripple') setupRipple();
-            if (mode === 'ocean') setupOcean();
-        }
+        function setMode(mode) { currentMode = mode; document.querySelectorAll('.nav-text').forEach(el => el.classList.remove('active')); document.getElementById('btn-' + mode).classList.add('active'); Object.keys(canvases).forEach(k => { document.getElementById(k + '-container').style.display = k === mode ? 'block' : 'none'; }); document.getElementById('chess-container').style.display = mode === 'chess' ? 'flex' : 'none'; }
     </script>
 </body>
 </html>
