@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neon OS</title>
+    <link rel="icon" type="image/png" href="https://img.icons8.com/ios-filled/50/00f2ff/black-hole.png">
+
+    <link rel="apple-touch-icon" href="https://img.icons8.com/ios-filled/150/00f2ff/black-hole.png">
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; user-select: none; }
         
@@ -148,7 +151,7 @@
         function resize() { Object.values(canvases).forEach(c => { c.width = window.innerWidth; c.height = window.innerHeight; }); if(currentMode === 'ripple') setupRipple(); if(currentMode === 'ocean') setupOcean(); }
         window.addEventListener('resize', resize);
 
-        // --- ORIGINAL ENGINES ---
+        // --- ENGINES ---
         let silk_lines = Array.from({length: 12}, () => createSilkLine());
         function createSilkLine() {
             return {
@@ -184,11 +187,19 @@
         let evalMarker = { square: null, type: null, color: null };
 
         const weights = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
+        const PST = {
+            p: [[0,0,0,0,0,0,0,0],[50,50,50,50,50,50,50,50],[10,10,20,30,30,20,10,10],[5,5,10,25,25,10,5,5],[0,0,0,20,20,0,0,0],[5,-5,-10,0,0,-10,-5,5],[5,10,10,-20,-20,10,10,5],[0,0,0,0,0,0,0,0]],
+            n: [[-50,-40,-30,-30,-30,-30,-40,-50],[-40,-20,0,0,0,0,-20,-40],[-30,0,10,15,15,10,0,-30],[-30,5,15,20,20,15,5,-30],[-30,0,15,20,20,15,0,-30],[-30,5,10,15,15,10,5,-30],[-40,-20,0,5,5,0,-20,-40],[-50,-40,-30,-30,-30,-30,-40,-50]],
+            b: [[-20,-10,-10,-10,-10,-10,-10,-20],[-10,0,0,0,0,0,0,-10],[-10,0,5,10,10,5,0,-10],[-10,5,5,10,10,5,5,-10],[-10,0,10,10,10,10,0,-10],[-10,10,10,10,10,10,10,-10],[-10,5,0,0,0,0,5,-10],[-20,-10,-10,-10,-10,-10,-10,-20]],
+            k: [[-30,-40,-40,-50,-50,-40,-40,-30],[-30,-40,-40,-50,-50,-40,-40,-30],[-30,-40,-40,-50,-50,-40,-40,-30],[-30,-40,-40,-50,-50,-40,-40,-30],[-20,-30,-30,-40,-40,-30,-30,-20],[-10,-20,-20,-20,-20,-20,-20,-10],[20,20,0,0,0,0,20,20],[20,30,10,0,0,10,30,20]]
+        };
+
         function evalBoard(g) {
             let total = 0;
             g.board().forEach((row, r) => row.forEach((p, c) => {
                 if (p) {
                     let val = weights[p.type];
+                    if (PST[p.type]) val += (p.color === 'w' ? PST[p.type][r][c] : PST[p.type][7-r][c]);
                     total += (p.color === 'w' ? val : -val);
                 }
             }));
@@ -196,7 +207,10 @@
         }
 
         function minimax(g, depth, alpha, beta, isMax) {
+            if (g.in_checkmate()) return isMax ? -99999 + depth : 99999 - depth;
+            if (g.in_draw() || g.in_stalemate()) return 0;
             if (depth === 0) return evalBoard(g);
+            
             let moves = g.moves();
             if (isMax) {
                 let best = -99999;
@@ -236,7 +250,8 @@
                     boardEl.appendChild(sq);
                 });
             });
-            if(chessGame.in_checkmate()) endChessMatch(chessGame.turn()==='w'?"AI WINS":"USER WINS");
+            if(chessGame.in_checkmate()) endChessMatch(chessGame.turn()==='w' ? "AI WINS - CHECKMATE" : "USER WINS - CHECKMATE");
+            else if (chessGame.in_stalemate() || chessGame.in_draw()) endChessMatch("STALEMATE - SYSTEM DEADLOCKED");
         }
 
         function handleChessMove(id) {
@@ -247,11 +262,13 @@
                 let move = chessGame.move({from: selectedSq, to: id, promotion: 'q'});
                 if(move) {
                     let curEval = evalBoard(chessGame); let diff = curEval - lastEval;
-                    if(diff > 200) evalMarker = { square: id, type: '!!', color: '#00f2ff' };
+                    if (chessGame.in_checkmate()) evalMarker = { square: id, type: '!!', color: '#00f2ff' };
+                    else if(diff > 150) evalMarker = { square: id, type: '!!', color: '#00f2ff' };
                     else if(diff > 50) evalMarker = { square: id, type: '!', color: '#4caf50' };
-                    else if(diff < -200) evalMarker = { square: id, type: '??', color: '#ff4141' };
-                    else evalMarker = { square: id, type: 'OK', color: '#777' };
-                    lastEval = curEval; selectedSq = null; renderChessBoard(); setTimeout(makeAIMove, 600);
+                    else if(diff > -50) evalMarker = { square: id, type: '-', color: '#777' };
+                    else if(diff > -150) evalMarker = { square: id, type: '?', color: '#ffa500' };
+                    else evalMarker = { square: id, type: '??', color: '#ff4141' };
+                    lastEval = curEval; selectedSq = null; renderChessBoard(); setTimeout(makeAIMove, 400);
                 } else { selectedSq = (chessGame.get(id)?.color === 'w') ? id : null; renderChessBoard(); }
             }
         }
@@ -269,7 +286,7 @@
         function exitChessMatch() { clearInterval(chessTimer); document.getElementById('chess-board-wrapper').style.display = 'none'; document.getElementById('chess-setup-menu').style.display = 'block'; document.getElementById('exit-match').style.display = 'none'; document.getElementById('win-banner').style.display = 'none'; chessGame = new Chess(); selectedSq = null; lastEval = 0; evalMarker = {square:null}; }
         function endChessMatch(msg) { clearInterval(chessTimer); const banner = document.getElementById('win-banner'); banner.innerText = msg; banner.style.display = 'flex'; }
 
-        // --- LOOP ---
+        // --- MAIN LOOP ---
         function loop() {
             if (currentMode === 'ocean') drawOcean();
             else if (currentMode === 'rain') {
@@ -284,11 +301,28 @@
                 silk_lines.forEach(l => { l.update(); ctxs.silk.beginPath(); ctxs.silk.strokeStyle = l.c; ctxs.silk.globalAlpha = 1; l.hist.forEach((p, j) => j===0 ? ctxs.silk.moveTo(p.x, p.y) : ctxs.silk.lineTo(p.x, p.y)); ctxs.silk.stroke(); }); silkTime += 0.0015;
             } else if (currentMode === 'ripple') {
                 ctxs.ripple.fillStyle = '#000'; ctxs.ripple.fillRect(0,0,canvases.ripple.width, canvases.ripple.height);
-                ripple_grid.forEach(p => { p.vx += (p.ox - p.x)*0.06; p.vy += (p.oy - p.y)*0.06; p.vx *= 0.85; p.vy *= 0.85; p.x += p.vx; p.y += p.vy; let s = Math.sqrt(p.vx*p.vx+p.vy*p.vy); ctxs.ripple.fillStyle = `rgb(0, ${100 + s*10}, 255)`; ctxs.ripple.beginPath(); ctxs.ripple.arc(p.x, p.y, 3.5 + s/4.5, 0, Math.PI*2); ctxs.ripple.fill(); });
+                ripple_grid.forEach(p => { 
+                    p.vx += (p.ox - p.x)*0.06; p.vy += (p.oy - p.y)*0.06; p.vx *= 0.85; p.vy *= 0.85; p.x += p.vx; p.y += p.vy;
+                    let s = Math.sqrt(p.vx*p.vx+p.vy*p.vy);
+                    ctxs.ripple.fillStyle = `rgb(0, ${100 + s*10}, 255)`;
+                    ctxs.ripple.beginPath(); ctxs.ripple.arc(p.x, p.y, 3.5 + s/4.5, 0, Math.PI*2); ctxs.ripple.fill();
+                });
             }
             requestAnimationFrame(loop);
         }
-        function setMode(mode) { currentMode = mode; document.querySelectorAll('.nav-text').forEach(el => el.classList.remove('active')); document.getElementById('btn-' + mode).classList.add('active'); Object.keys(canvases).forEach(k => { document.getElementById(k + '-container').style.display = k === mode ? 'block' : 'none'; }); document.getElementById('chess-container').style.display = mode === 'chess' ? 'flex' : 'none'; }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.nav-text').forEach(el => el.classList.remove('active'));
+            document.getElementById('btn-' + mode).classList.add('active');
+            Object.keys(canvases).forEach(k => { document.getElementById(k + '-container').style.display = k === mode ? 'block' : 'none'; });
+            document.getElementById('chess-container').style.display = mode === 'chess' ? 'flex' : 'none';
+            if (mode === 'ripple') setupRipple();
+            if (mode === 'ocean') setupOcean();
+            if (mode === 'chess' && !chessGame.game_over()) renderChessBoard();
+        }
+
+        window.onload = () => passInput.focus();
     </script>
 </body>
 </html>
