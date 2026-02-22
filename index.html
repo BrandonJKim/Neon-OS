@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neon OS</title>
-    <link rel="icon" type="image/png" href="https://img.icons8.com/ios-filled/50/00f2ff/black-hole.png">
-
-    <link rel="apple-touch-icon" href="https://img.icons8.com/ios-filled/150/00f2ff/black-hole.png">
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; user-select: none; }
         
@@ -38,9 +35,10 @@
 
         /* --- CHESS MODULE STYLES --- */
         #chess-container { flex-direction: column; justify-content: center; align-items: center; background: radial-gradient(circle, #0a1520 0%, #000 100%); }
-        .chess-setup { z-index: 1100; text-align: center; background: rgba(0,0,0,0.9); padding: 30px; border: 1px solid #00f2ff; }
-        .chess-btn { background: none; border: 1px solid #00f2ff; color: #00f2ff; padding: 10px 20px; cursor: pointer; font-family: inherit; margin: 5px; transition: 0.3s; }
+        .chess-setup { z-index: 1100; text-align: center; background: rgba(0,0,0,0.9); padding: 30px; border: 1px solid #00f2ff; width: 400px; }
+        .chess-btn { background: none; border: 1px solid #00f2ff; color: #00f2ff; padding: 10px 15px; cursor: pointer; font-family: inherit; margin: 5px; transition: 0.3s; font-size: 10px; }
         .chess-btn:hover, .chess-btn.active { background: #00f2ff; color: #000; box-shadow: 0 0 15px #00f2ff; }
+        .setup-label { color: #555; font-size: 9px; letter-spacing: 2px; margin-top: 15px; display: block; text-transform: uppercase;}
         
         .timer-display { display: flex; justify-content: space-between; width: 520px; margin-bottom: 10px; color: #00f2ff; font-size: 18px; letter-spacing: 2px; }
         .chessboard { width: 520px; height: 520px; display: grid; grid-template-columns: repeat(8, 1fr); border: 4px solid #00f2ff; position: relative; }
@@ -96,12 +94,23 @@
         <div id="chess-container" class="canvas-container" style="display:none; flex-direction:column;">
             <div id="win-banner">CHECKMATE - SYSTEM CAPTURED</div>
             <div id="chess-setup-menu" class="chess-setup">
-                <h3 style="color:#00f2ff; margin-top:0;">CHESS_CORE_v2.0</h3>
-                <button class="chess-btn" onclick="setChessTime(300)">5 MIN</button>
-                <button class="chess-btn" onclick="setChessTime(600)">10 MIN</button>
-                <button class="chess-btn" onclick="setChessTime(Infinity)">INFINITE</button>
+                <h3 style="color:#00f2ff; margin-top:0; letter-spacing: 4px;">CHESS_SYSTEMCORE_v2</h3>
+                
+                <span class="setup-label">Select Complexity</span>
+                <button class="chess-btn active" id="ai-base" onclick="setAI('base')">NEON_STANDARD</button>
+                <button class="chess-btn" id="ai-pro" onclick="setAI('pro')">NEON_ChessPro</button>
+
+                <span class="setup-label">Clock </span>
+                <button class="chess-btn" id="t-300" onclick="setChessTime(300)">5 MIN</button>
+                <button class="chess-btn active" id="t-600" onclick="setChessTime(600)">10 MIN</button>
+                <button class="chess-btn" id="t-inf" onclick="setChessTime(Infinity)">INF</button>
+
+                <span class="setup-label">Choose Side</span>
+                <button class="chess-btn active" id="side-w" onclick="setSide('w')">WHITE (USER)</button>
+                <button class="chess-btn" id="side-b" onclick="setSide('b')">BLACK (USER)</button>
+                
                 <br><br>
-                <button class="chess-btn" style="width: 100%;" onclick="startChessGame()">START_MATCH</button>
+                <button class="chess-btn" style="width: 100%; border-width: 2px; font-weight: bold;" onclick="startChessGame()">EXECUTE_MATCH</button>
             </div>
             <div id="chess-board-wrapper" style="display:none; text-align: center;">
                 <div class="timer-display">
@@ -185,6 +194,8 @@
         let whiteTime = 600, blackTime = 600, isInfinite = false, chessTimer = null;
         let lastEval = 0;
         let evalMarker = { square: null, type: null, color: null };
+        let userColor = 'w';
+        let aiLevel = 'base';
 
         const weights = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
         const PST = {
@@ -206,12 +217,20 @@
             return total;
         }
 
+        function getOrderedMoves(g) {
+            return g.moves().sort((a, b) => {
+                const scoreA = a.includes('x') ? 10 : 0;
+                const scoreB = b.includes('x') ? 10 : 0;
+                return scoreB - scoreA;
+            });
+        }
+
         function minimax(g, depth, alpha, beta, isMax) {
             if (g.in_checkmate()) return isMax ? -99999 + depth : 99999 - depth;
             if (g.in_draw() || g.in_stalemate()) return 0;
             if (depth === 0) return evalBoard(g);
             
-            let moves = g.moves();
+            let moves = getOrderedMoves(g);
             if (isMax) {
                 let best = -99999;
                 for (let m of moves) { g.move(m); best = Math.max(best, minimax(g, depth-1, alpha, beta, false)); g.undo(); alpha = Math.max(alpha, best); if(beta <= alpha) break; }
@@ -223,20 +242,55 @@
             }
         }
 
-        function setChessTime(s) { isInfinite = s === Infinity; whiteTime = s; blackTime = s; }
-        function startChessGame() {
-            document.getElementById('chess-setup-menu').style.display = 'none'; document.getElementById('chess-board-wrapper').style.display = 'block'; document.getElementById('exit-match').style.display = 'inline-block';
-            renderChessBoard(); if(!isInfinite) { chessTimer = setInterval(() => { chessGame.turn() === 'w' ? whiteTime-- : blackTime--; updateChessClocks(); }, 1000); }
+        function setChessTime(s) { 
+            isInfinite = s === Infinity; whiteTime = s; blackTime = s; 
+            document.querySelectorAll('[id^="t-"]').forEach(b => b.classList.remove('active'));
+            document.getElementById(s === Infinity ? 't-inf' : 't-'+s).classList.add('active');
         }
-        function updateChessClocks() { const fmt = (s) => isInfinite ? "INF" : `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`; document.getElementById('white-clock').innerText = `USER: ${fmt(whiteTime)}`; document.getElementById('black-clock').innerText = `AI: ${fmt(blackTime)}`; }
+
+        function setAI(lvl) {
+            aiLevel = lvl;
+            document.getElementById('ai-base').classList.toggle('active', lvl === 'base');
+            document.getElementById('ai-pro').classList.toggle('active', lvl === 'pro');
+        }
+
+        function setSide(s) {
+            userColor = s;
+            document.getElementById('side-w').classList.toggle('active', s === 'w');
+            document.getElementById('side-b').classList.toggle('active', s === 'b');
+        }
+
+        function startChessGame() {
+            document.getElementById('chess-setup-menu').style.display = 'none'; 
+            document.getElementById('chess-board-wrapper').style.display = 'block'; 
+            document.getElementById('exit-match').style.display = 'inline-block';
+            renderChessBoard(); 
+            if(!isInfinite) { 
+                chessTimer = setInterval(() => { 
+                    chessGame.turn() === 'w' ? whiteTime-- : blackTime--; 
+                    updateChessClocks(); 
+                    if(whiteTime <= 0 || blackTime <= 0) endChessMatch("TIME EXPIRED - SYSTEM TIMEOUT");
+                }, 1000); 
+            }
+            // If user is black, AI moves first
+            if(userColor === 'b') setTimeout(makeAIMove, 500);
+        }
+
+        function updateChessClocks() { const fmt = (s) => isInfinite ? "INF" : `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`; document.getElementById('white-clock').innerText = `USER: ${fmt(userColor === 'w' ? whiteTime : blackTime)}`; document.getElementById('black-clock').innerText = `AI: ${fmt(userColor === 'w' ? blackTime : whiteTime)}`; }
 
         function renderChessBoard() {
             const boardEl = document.getElementById('board'); boardEl.innerHTML = '';
-            chessGame.board().forEach((row, r) => {
-                row.forEach((p, c) => {
-                    const id = String.fromCharCode(97+c) + (8-r);
+            const boardData = userColor === 'w' ? chessGame.board() : chessGame.board().reverse();
+            
+            boardData.forEach((row, r) => {
+                const actualRow = userColor === 'w' ? row : row.reverse();
+                actualRow.forEach((p, c) => {
+                    const rowIdx = userColor === 'w' ? r : 7-r;
+                    const colIdx = userColor === 'w' ? c : 7-c;
+                    const id = String.fromCharCode(97+colIdx) + (8-rowIdx);
+                    
                     const sq = document.createElement('div');
-                    sq.className = `square ${(r+c)%2===0?'white-sq':'black-sq'} ${selectedSq === id ? 'selected' : ''}`;
+                    sq.className = `square ${(rowIdx+colIdx)%2===0?'white-sq':'black-sq'} ${selectedSq === id ? 'selected' : ''}`;
                     sq.onclick = () => handleChessMove(id);
                     if(p) {
                         const div = document.createElement('div'); div.className = `piece ${p.color==='w'?'wood-w':'wood-b'}`;
@@ -250,37 +304,51 @@
                     boardEl.appendChild(sq);
                 });
             });
-            if(chessGame.in_checkmate()) endChessMatch(chessGame.turn()==='w' ? "AI WINS - CHECKMATE" : "USER WINS - CHECKMATE");
+            if(chessGame.in_checkmate()) endChessMatch(chessGame.turn() === userColor ? "AI WINS - CHECKMATE" : "USER WINS - CHECKMATE");
             else if (chessGame.in_stalemate() || chessGame.in_draw()) endChessMatch("STALEMATE - SYSTEM DEADLOCKED");
         }
 
         function handleChessMove(id) {
-            if(chessGame.turn()==='b' || chessGame.game_over()) return;
+            if(chessGame.turn() !== userColor || chessGame.game_over()) return;
             if(!selectedSq) {
-                let p = chessGame.get(id); if(p && p.color === 'w') { selectedSq = id; renderChessBoard(); }
+                let p = chessGame.get(id); if(p && p.color === userColor) { selectedSq = id; renderChessBoard(); }
             } else {
                 let move = chessGame.move({from: selectedSq, to: id, promotion: 'q'});
                 if(move) {
-                    let curEval = evalBoard(chessGame); let diff = curEval - lastEval;
+                    let curEval = evalBoard(chessGame); let diff = (userColor === 'w' ? curEval - lastEval : lastEval - curEval);
                     if (chessGame.in_checkmate()) evalMarker = { square: id, type: '!!', color: '#00f2ff' };
                     else if(diff > 150) evalMarker = { square: id, type: '!!', color: '#00f2ff' };
                     else if(diff > 50) evalMarker = { square: id, type: '!', color: '#4caf50' };
                     else if(diff > -50) evalMarker = { square: id, type: '-', color: '#777' };
                     else if(diff > -150) evalMarker = { square: id, type: '?', color: '#ffa500' };
                     else evalMarker = { square: id, type: '??', color: '#ff4141' };
-                    lastEval = curEval; selectedSq = null; renderChessBoard(); setTimeout(makeAIMove, 400);
-                } else { selectedSq = (chessGame.get(id)?.color === 'w') ? id : null; renderChessBoard(); }
+                    lastEval = curEval; selectedSq = null; renderChessBoard(); 
+                    setTimeout(makeAIMove, 300); // Async call to prevent UI hang
+                } else { selectedSq = (chessGame.get(id)?.color === userColor) ? id : null; renderChessBoard(); }
             }
         }
 
         function makeAIMove() {
-            let moves = chessGame.moves(); if(moves.length === 0) return;
-            let bestVal = 99999, bestMove = moves[0];
+            if (chessGame.game_over()) return;
+            const depth = aiLevel === 'pro' ? 3 : 2;
+            let moves = getOrderedMoves(chessGame);
+            let bestVal = chessGame.turn() === 'w' ? -99999 : 99999;
+            let bestMove = moves[0];
+
+            // AI thinking logic
             moves.forEach(m => {
-                chessGame.move(m); let v = minimax(chessGame, 2, -100000, 100000, true); chessGame.undo();
-                if(v < bestVal) { bestVal = v; bestMove = m; }
+                chessGame.move(m);
+                let v = minimax(chessGame, depth - 1, -100000, 100000, chessGame.turn() === 'w');
+                chessGame.undo();
+                if(chessGame.turn() === 'w') {
+                    if(v > bestVal) { bestVal = v; bestMove = m; }
+                } else {
+                    if(v < bestVal) { bestVal = v; bestMove = m; }
+                }
             });
-            chessGame.move(bestMove); renderChessBoard();
+
+            chessGame.move(bestMove);
+            renderChessBoard();
         }
 
         function exitChessMatch() { clearInterval(chessTimer); document.getElementById('chess-board-wrapper').style.display = 'none'; document.getElementById('chess-setup-menu').style.display = 'block'; document.getElementById('exit-match').style.display = 'none'; document.getElementById('win-banner').style.display = 'none'; chessGame = new Chess(); selectedSq = null; lastEval = 0; evalMarker = {square:null}; }
