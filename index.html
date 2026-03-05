@@ -55,6 +55,22 @@
 
         #win-banner { position: absolute; top: 100px; width: 100%; height: 60px; background: rgba(0, 242, 255, 0.9); display: none; justify-content: center; align-items: center; z-index: 1200; color: #000; font-weight: bold; letter-spacing: 5px; }
         #exit-match { margin-top: 20px; border-color: #ff4141; color: #ff4141; display: none; }
+
+        /* --- MOBILE RESPONSIVE FIXES ADDED HERE --- */
+        @media (max-width: 600px) {
+            #terminal { width: 85%; padding: 20px; box-sizing: border-box; }
+            .bar-container { width: 85%; }
+            #nav-ui { top: 15px; left: 0; width: 100%; justify-content: center; flex-wrap: wrap; gap: 10px; padding: 0 10px; box-sizing: border-box; }
+            .nav-text { font-size: 10px; letter-spacing: 2px; }
+            #ambience-container { width: 90%; left: 5%; top: 15%; }
+            
+            .chess-setup { width: 90%; padding: 15px; box-sizing: border-box; }
+            .timer-display { width: 95vw; font-size: 14px; }
+            .chessboard { width: 95vw; height: 95vw; max-width: 520px; max-height: 520px; }
+            .square { width: 100%; height: 100%; }
+            .piece { width: 80%; height: 80%; }
+            #win-banner { font-size: 12px; letter-spacing: 2px; text-align: center; }
+        }
     </style>
 </head>
 <body>
