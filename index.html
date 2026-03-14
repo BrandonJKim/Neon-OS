@@ -3,78 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Neon OS</title>
+    <title>NeonOS</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; user-select: none; }
         
-        /* --- ACCESS SYSTEM --- */
+        /* --- ACCESS & OS SYSTEM --- */
         #login-screen { position: fixed; inset: 0; z-index: 9999; background: #000; display: flex; align-items: center; justify-content: center; flex-direction: column; }
         #terminal { width: 450px; color: #00ff41; background: #050505; padding: 30px; border: 1px solid #111; box-shadow: 0 0 40px rgba(0, 255, 65, 0.08); border-radius: 4px; }
         #terminal input { background: transparent; border: none; color: #fff; outline: none; width: 80%; font-family: inherit; font-size: 1.2em; caret-color: #00ff41; }
-        
         #loading-screen { display: none; position: fixed; inset: 0; z-index: 10000; background: #000; color: #00ff41; flex-direction: column; align-items: center; justify-content: center; letter-spacing: 5px; }
         .bar-container { width: 400px; height: 2px; background: #111; margin-top: 30px; position: relative; }
         .bar { width: 0%; height: 100%; background: #00ff41; box-shadow: 0 0 10px #00ff41; transition: width 0.1s linear; }
-
-        /* --- AMBIENCE MODE --- */
-        #ambience-container { position: fixed; top: 10%; left: 10%; width: 80%; height: 80%; display: none; transition: background 1.5s cubic-bezier(0.4, 0, 0.2, 1); z-index: 500; border-radius: 20px; box-shadow: 0 0 100px rgba(0,0,0,0.8); }
-        #cycle-btn { position: fixed; top: 25px; right: 40px; z-index: 1001; color: #fff; cursor: pointer; font-size: 11px; letter-spacing: 3px; opacity: 0.4; border: 1px solid rgba(255,255,255,0.2); padding: 8px 15px; border-radius: 20px; transition: 0.3s; display: none; }
-        #cycle-btn:hover { opacity: 1; background: rgba(255,255,255,0.1); }
-
-        /* --- MAIN OS INTERFACE --- */
+        
         #main-os { display: none; }
         #nav-ui { position: fixed; top: 30px; left: 40px; z-index: 1000; display: flex; gap: 30px; }
-        .nav-text { color: rgba(255, 255, 255, 0.2); cursor: pointer; font-size: 12px; font-weight: 400; letter-spacing: 3px; transition: 0.4s; text-transform: uppercase; padding-bottom: 5px; }
-        .nav-text:hover { color: #fff; }
-        .nav-text.active { color: #fff; text-shadow: 0 0 15px #fff; border-bottom: 2px solid #fff; }
+        .nav-text { color: rgba(255, 255, 255, 0.2); cursor: pointer; font-size: 12px; letter-spacing: 3px; transition: 0.4s; text-transform: uppercase; padding-bottom: 5px; }
+        .nav-text:hover, .nav-text.active { color: #fff; text-shadow: 0 0 15px #fff; }
+        .nav-text.active { border-bottom: 2px solid #fff; }
         
         .canvas-container { position: absolute; width: 100%; height: 100%; display: none; background: #000; }
         #silk-container { display: block; filter: drop-shadow(0 0 8px #00f2ff); }
         #lava-container { filter: blur(20px) contrast(30); background: #0f051d; }
         canvas { display: block; }
 
-        /* --- CHESS MODULE STYLES --- */
+        /* --- CHESS MODULE --- */
         #chess-container { flex-direction: column; justify-content: center; align-items: center; background: radial-gradient(circle, #0a1520 0%, #000 100%); }
         .chess-setup { z-index: 1100; text-align: center; background: rgba(0,0,0,0.9); padding: 30px; border: 1px solid #00f2ff; width: 400px; }
         .chess-btn { background: none; border: 1px solid #00f2ff; color: #00f2ff; padding: 10px 15px; cursor: pointer; font-family: inherit; margin: 5px; transition: 0.3s; font-size: 10px; }
         .chess-btn:hover, .chess-btn.active { background: #00f2ff; color: #000; box-shadow: 0 0 15px #00f2ff; }
         .setup-label { color: #555; font-size: 9px; letter-spacing: 2px; margin-top: 15px; display: block; text-transform: uppercase;}
-        
         .timer-display { display: flex; justify-content: space-between; width: 520px; margin-bottom: 10px; color: #00f2ff; font-size: 18px; letter-spacing: 2px; }
         .chessboard { width: 520px; height: 520px; display: grid; grid-template-columns: repeat(8, 1fr); border: 4px solid #00f2ff; position: relative; }
         .square { width: 65px; height: 65px; display: flex; justify-content: center; align-items: center; position: relative; cursor: pointer; }
         .white-sq { background-color: rgba(0, 242, 255, 0.1); }
         .black-sq { background-color: rgba(2, 5, 10, 0.8); }
         .selected { background-color: rgba(0, 242, 255, 0.6) !important; }
-
         .piece { width: 55px; height: 55px; background-size: contain; background-repeat: no-repeat; pointer-events: none; z-index: 5; }
         .wood-w { filter: sepia(0.6) saturate(2.5) brightness(1.1) contrast(1.2) drop-shadow(0 0 8px #00f2ff); }
         .wood-b { filter: sepia(1) saturate(0.5) brightness(0.4) contrast(1.6) drop-shadow(0 0 8px #ff0080); }
-        
         .eval-icon { position: absolute; top: -5px; right: -5px; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; color: #fff; z-index: 10; border: 2px solid #000; pointer-events: none; }
-
         #win-banner { position: absolute; top: 100px; width: 100%; height: 60px; background: rgba(0, 242, 255, 0.9); display: none; justify-content: center; align-items: center; z-index: 1200; color: #000; font-weight: bold; letter-spacing: 5px; }
         #exit-match { margin-top: 20px; border-color: #ff4141; color: #ff4141; display: none; }
 
-        /* --- MOBILE RESPONSIVE FIXES ADDED HERE --- */
-        @media (max-width: 600px) {
-            #terminal { width: 85%; padding: 20px; box-sizing: border-box; }
-            .bar-container { width: 85%; }
-            #nav-ui { top: 15px; left: 0; width: 100%; justify-content: center; flex-wrap: wrap; gap: 10px; padding: 0 10px; box-sizing: border-box; }
-            .nav-text { font-size: 10px; letter-spacing: 2px; }
-            #ambience-container { width: 90%; left: 5%; top: 15%; }
-            
-            .chess-setup { width: 90%; padding: 15px; box-sizing: border-box; }
-            .timer-display { width: 95vw; font-size: 14px; }
-            .chessboard { width: 95vw; height: 95vw; max-width: 520px; max-height: 520px; }
-            .square { width: 100%; height: 100%; }
-            .piece { width: 80%; height: 80%; }
-            #win-banner { font-size: 12px; letter-spacing: 2px; text-align: center; }
-        }
+        /* --- DESCENT GAME OVERLAYS --- */
+        #shadows-container { filter: contrast(1.1) brightness(1.0); }
+        #game-hud { position: absolute; top: 80px; left: 40px; color: #fff; z-index: 10; pointer-events: none; display: none; font-family: 'Segoe UI', sans-serif; }
+        .g-label { font-size: 10px; letter-spacing: 3px; color: #667; margin-bottom: 5px; font-weight: bold; }
+        .g-bar-container { width: 280px; height: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px; border-radius: 2px; overflow: hidden; }
+        #g-hp-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #800, #f33); box-shadow: 0 0 15px rgba(255,0,0,0.3); transition: width 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        #g-sp-bar { width: 100%; height: 100%; background: linear-gradient(90deg, #053, #0f8); box-shadow: 0 0 15px rgba(0,255,100,0.2); transition: width 0.1s; }
+        #depth-meter { position: absolute; top: 80px; right: 40px; text-align: right; color: #444; font-family: monospace; display: none; z-index: 10;}
+        #depth-val { font-size: 32px; color: #889; display: block; font-weight: 100; }
+        .overlay-screen { position: absolute; inset: 0; display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 100; color: #fff; font-family: 'Segoe UI', sans-serif; }
+        #death-screen { background: rgba(20, 0, 0, 0.9); }
+        #win-screen { background: rgba(0, 20, 20, 0.9); }
+        .msg { font-size: 40px; letter-spacing: 15px; margin-bottom: 20px; }
+        #key-status { font-size: 12px; color: #ff0; margin-top: 10px; display: none; font-family: 'Segoe UI', sans-serif;}
     </style>
 </head>
 <body>
-
     <div id="login-screen">
         <div id="terminal">
             <div style="opacity: 0.5; font-size: 0.8em; margin-bottom: 15px;">NEON_OS SYSTEM_SHELL v4.6.0</div>
@@ -88,9 +76,6 @@
         <div class="bar-container"><div class="bar" id="load-bar"></div></div>
     </div>
 
-    <div id="ambience-container"></div>
-    <div id="cycle-btn" onclick="cycleAmbience()">SWITCH_SPECTRUM</div>
-
     <div id="main-os">
         <div id="nav-ui">
             <div class="nav-text active" id="btn-silk" onclick="setMode('silk')">Silk</div>
@@ -99,6 +84,7 @@
             <div class="nav-text" id="btn-ripple" onclick="setMode('ripple')">Ripple</div>
             <div class="nav-text" id="btn-ocean" onclick="setMode('ocean')">Ocean</div>
             <div class="nav-text" id="btn-chess" onclick="setMode('chess')">Chess</div>
+            <div class="nav-text" id="btn-shadows" style="color: #0ff;" onclick="setMode('shadows')">Shadows</div>
         </div>
         
         <div id="silk-container" class="canvas-container"><canvas id="silkCanvas"></canvas></div>
@@ -111,20 +97,16 @@
             <div id="win-banner">CHECKMATE - SYSTEM CAPTURED</div>
             <div id="chess-setup-menu" class="chess-setup">
                 <h3 style="color:#00f2ff; margin-top:0; letter-spacing: 4px;">CHESS_SYSTEMCORE_v2</h3>
-                
                 <span class="setup-label">Select Complexity</span>
                 <button class="chess-btn active" id="ai-base" onclick="setAI('base')">NEON_STANDARD</button>
                 <button class="chess-btn" id="ai-pro" onclick="setAI('pro')">NEON_ChessPro</button>
-
                 <span class="setup-label">Clock </span>
                 <button class="chess-btn" id="t-300" onclick="setChessTime(300)">5 MIN</button>
                 <button class="chess-btn active" id="t-600" onclick="setChessTime(600)">10 MIN</button>
                 <button class="chess-btn" id="t-inf" onclick="setChessTime(Infinity)">INF</button>
-
                 <span class="setup-label">Choose Side</span>
                 <button class="chess-btn active" id="side-w" onclick="setSide('w')">WHITE (USER)</button>
                 <button class="chess-btn" id="side-b" onclick="setSide('b')">BLACK (USER)</button>
-                
                 <br><br>
                 <button class="chess-btn" style="width: 100%; border-width: 2px; font-weight: bold;" onclick="startChessGame()">EXECUTE_MATCH</button>
             </div>
@@ -137,51 +119,81 @@
                 <button id="exit-match" class="chess-btn" onclick="exitChessMatch()">TERMINATE_SESSION</button>
             </div>
         </div>
+
+        <div id="shadows-container" class="canvas-container">
+            <div id="game-hud">
+                <div class="g-label">BIOMETRIC STABILITY</div>
+                <div class="g-bar-container"><div id="g-hp-bar"></div></div>
+                <div class="g-label">NEURAL ENERGY</div>
+                <div class="g-bar-container"><div id="g-sp-bar"></div></div>
+                <div id="key-status">CORE ACCESS KEY ACQUIRED</div>
+            </div>
+            <div id="depth-meter">
+                <div class="g-label">DISTANCE TO CORE</div>
+                <span id="depth-val">50000</span><span style="font-size:12px">M</span>
+            </div>
+            <div id="death-screen" class="overlay-screen">
+                <div class="msg" style="color: #f22;">VITALITY VOID</div>
+                <button class="chess-btn" style="border-color: #f22; color: #f22; font-size: 14px; font-weight: bold; margin-top: 10px;" onclick="restartDescent()">RE-SYNC (RESTART)</button>
+            </div>
+            <div id="win-screen" class="overlay-screen">
+                <div class="msg" style="color: #0ff;">CORE SYNCED</div>
+                <button class="chess-btn" style="font-size: 14px; font-weight: bold; margin-top: 10px;" onclick="restartDescent()">ASCEND (RESTART)</button>
+            </div>
+            <canvas id="gameCanvas"></canvas>
+        </div>
     </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-
     <script>
-        // --- GLOBAL STATE ---
+        // --- GLOBAL OS STATE ---
         let currentMode = 'silk';
         let silkTime = 0;
         let ghostTrails = [];
-        const canvases = { silk: document.getElementById('silkCanvas'), lava: document.getElementById('lavaCanvas'), rain: document.getElementById('rainCanvas'), ripple: document.getElementById('rippleCanvas'), ocean: document.getElementById('oceanCanvas') };
+        const canvases = { 
+            silk: document.getElementById('silkCanvas'), lava: document.getElementById('lavaCanvas'), 
+            rain: document.getElementById('rainCanvas'), ripple: document.getElementById('rippleCanvas'), 
+            ocean: document.getElementById('oceanCanvas'), shadows: document.getElementById('gameCanvas')
+        };
         const ctxs = {}; Object.keys(canvases).forEach(k => ctxs[k] = canvases[k].getContext('2d'));
 
         // --- GATEKEEPER ---
         const passInput = document.getElementById('pass-input');
-        passInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { const val = passInput.value.toLowerCase().trim(); if (val === 'neonos' || val === 'ambience') bootSystem(val); else passInput.value = ''; } });
-        function bootSystem(type) {
+        passInput.addEventListener('keypress', (e) => { 
+            if (e.key === 'Enter') { 
+                const val = passInput.value.toLowerCase().trim(); 
+                if (val === 'neonos') bootSystem(); else passInput.value = ''; 
+            } 
+        });
+        
+        function bootSystem() {
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('loading-screen').style.display = 'flex';
             const messages = ["DECRYPTING_PACKETS...", "BYPASSING_FIREWALL...", "OS_READY"];
             let p = 0;
             const interval = setInterval(() => {
                 p += Math.random() * 8;
-                if (p >= 100) { p = 100; clearInterval(interval); setTimeout(() => { document.getElementById('loading-screen').style.display = 'none'; if (type === 'neonos') initMainOS(); else initAmbience(); }, 600); }
+                if (p >= 100) { p = 100; clearInterval(interval); setTimeout(() => { document.getElementById('loading-screen').style.display = 'none'; initMainOS(); }, 600); }
                 document.getElementById('load-bar').style.width = p + '%';
                 document.getElementById('load-msg').innerText = messages[Math.floor(p/34)] || "OS_READY";
             }, 80);
         }
 
-        // --- AMBIENCE ---
-        let gradIdx = 0;
-        const spectra = ['linear-gradient(45deg, #0f0c29, #302b63, #24243e)', 'radial-gradient(circle, #000428, #004e92)', 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', 'radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%)'];
-        function initAmbience() { document.getElementById('ambience-container').style.display = 'block'; document.getElementById('cycle-btn').style.display = 'block'; cycleAmbience(); }
-        function cycleAmbience() { document.getElementById('ambience-container').style.background = spectra[gradIdx]; gradIdx = (gradIdx + 1) % spectra.length; }
-
-        // --- MAIN OS ---
-        function initMainOS() { document.getElementById('main-os').style.display = 'block'; resize(); setupRain(); setupRipple(); setupOcean(); loop(); }
-        function resize() { Object.values(canvases).forEach(c => { c.width = window.innerWidth; c.height = window.innerHeight; }); if(currentMode === 'ripple') setupRipple(); if(currentMode === 'ocean') setupOcean(); }
+        // --- MAIN OS SETUP ---
+        function initMainOS() { 
+            document.getElementById('main-os').style.display = 'block'; 
+            resize(); setupRain(); setupRipple(); setupOcean(); initDescentGame(); loop(); 
+        }
+        function resize() { 
+            Object.values(canvases).forEach(c => { c.width = window.innerWidth; c.height = window.innerHeight; }); 
+            if(currentMode === 'ripple') setupRipple(); if(currentMode === 'ocean') setupOcean(); 
+            gameW = window.innerWidth; gameH = window.innerHeight; // For Descent
+        }
         window.addEventListener('resize', resize);
 
-        // --- ENGINES ---
+        // --- AMBIENCE ENGINES ---
         let silk_lines = Array.from({length: 12}, () => createSilkLine());
         function createSilkLine() {
             return {
-                x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight, hist: [], age: 0, max: Math.random() * 600 + 400,
-                c: ['#00f2ff', '#7000ff', '#ff0080'][Math.floor(Math.random() * 3)],
+                x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight, hist: [], age: 0, max: Math.random() * 600 + 400, c: ['#00f2ff', '#7000ff', '#ff0080'][Math.floor(Math.random() * 3)],
                 update() {
                     this.hist.push({x: this.x, y: this.y}); if(this.hist.length > 100) this.hist.shift();
                     let angle = (Math.sin(this.x * 0.002) + Math.cos(this.y * 0.002) + silkTime) * Math.PI * 2;
@@ -203,15 +215,12 @@
             oceanStars.forEach(s => { let blink = Math.sin(oceanT * 2.5 + s.o * 12) * 0.5 + 0.5; ctx.fillStyle = `rgba(255, 255, 255, ${blink * 0.9})`; ctx.beginPath(); ctx.arc(s.x, s.y, s.s, 0, Math.PI*2); ctx.fill(); });
             oceanT += 0.007; for(let i=0; i<8; i++) { ctx.beginPath(); ctx.moveTo(0, h); let amp = 22 + (i * 14), freq = 0.0028 + (i * 0.0002), speed = oceanT * (1.1 + (i * 0.12)); ctx.fillStyle = `rgba(0, ${25 + i*28}, ${60 + i*22}, ${0.12 + i*0.09})`; for(let x=0; x<=w; x+=3.5) { let y = h*0.68 + Math.sin(x*freq + speed) * amp + Math.cos(x*0.004 - speed*0.6) * (amp*0.5) + Math.sin(x*0.012 + speed*1.8) * 6; ctx.lineTo(x, y + i*48); } ctx.lineTo(w, h); ctx.fill(); }
         }
-
         // --- CHESS LOGIC ---
         let chessGame = new Chess();
         let selectedSq = null;
         let whiteTime = 600, blackTime = 600, isInfinite = false, chessTimer = null;
-        let lastEval = 0;
-        let evalMarker = { square: null, type: null, color: null };
-        let userColor = 'w';
-        let aiLevel = 'base';
+        let lastEval = 0; let evalMarker = { square: null, type: null, color: null };
+        let userColor = 'w'; let aiLevel = 'base';
 
         const weights = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 };
         const PST = {
@@ -234,18 +243,13 @@
         }
 
         function getOrderedMoves(g) {
-            return g.moves().sort((a, b) => {
-                const scoreA = a.includes('x') ? 10 : 0;
-                const scoreB = b.includes('x') ? 10 : 0;
-                return scoreB - scoreA;
-            });
+            return g.moves().sort((a, b) => { const scoreA = a.includes('x') ? 10 : 0; const scoreB = b.includes('x') ? 10 : 0; return scoreB - scoreA; });
         }
 
         function minimax(g, depth, alpha, beta, isMax) {
             if (g.in_checkmate()) return isMax ? -99999 + depth : 99999 - depth;
             if (g.in_draw() || g.in_stalemate()) return 0;
             if (depth === 0) return evalBoard(g);
-            
             let moves = getOrderedMoves(g);
             if (isMax) {
                 let best = -99999;
@@ -258,37 +262,14 @@
             }
         }
 
-        function setChessTime(s) { 
-            isInfinite = s === Infinity; whiteTime = s; blackTime = s; 
-            document.querySelectorAll('[id^="t-"]').forEach(b => b.classList.remove('active'));
-            document.getElementById(s === Infinity ? 't-inf' : 't-'+s).classList.add('active');
-        }
-
-        function setAI(lvl) {
-            aiLevel = lvl;
-            document.getElementById('ai-base').classList.toggle('active', lvl === 'base');
-            document.getElementById('ai-pro').classList.toggle('active', lvl === 'pro');
-        }
-
-        function setSide(s) {
-            userColor = s;
-            document.getElementById('side-w').classList.toggle('active', s === 'w');
-            document.getElementById('side-b').classList.toggle('active', s === 'b');
-        }
+        function setChessTime(s) { isInfinite = s === Infinity; whiteTime = s; blackTime = s; document.querySelectorAll('[id^="t-"]').forEach(b => b.classList.remove('active')); document.getElementById(s === Infinity ? 't-inf' : 't-'+s).classList.add('active'); }
+        function setAI(lvl) { aiLevel = lvl; document.getElementById('ai-base').classList.toggle('active', lvl === 'base'); document.getElementById('ai-pro').classList.toggle('active', lvl === 'pro'); }
+        function setSide(s) { userColor = s; document.getElementById('side-w').classList.toggle('active', s === 'w'); document.getElementById('side-b').classList.toggle('active', s === 'b'); }
 
         function startChessGame() {
-            document.getElementById('chess-setup-menu').style.display = 'none'; 
-            document.getElementById('chess-board-wrapper').style.display = 'block'; 
-            document.getElementById('exit-match').style.display = 'inline-block';
+            document.getElementById('chess-setup-menu').style.display = 'none'; document.getElementById('chess-board-wrapper').style.display = 'block'; document.getElementById('exit-match').style.display = 'inline-block';
             renderChessBoard(); 
-            if(!isInfinite) { 
-                chessTimer = setInterval(() => { 
-                    chessGame.turn() === 'w' ? whiteTime-- : blackTime--; 
-                    updateChessClocks(); 
-                    if(whiteTime <= 0 || blackTime <= 0) endChessMatch("TIME EXPIRED - SYSTEM TIMEOUT");
-                }, 1000); 
-            }
-            // If user is black, AI moves first
+            if(!isInfinite) { chessTimer = setInterval(() => { chessGame.turn() === 'w' ? whiteTime-- : blackTime--; updateChessClocks(); if(whiteTime <= 0 || blackTime <= 0) endChessMatch("TIME EXPIRED - SYSTEM TIMEOUT"); }, 1000); }
             if(userColor === 'b') setTimeout(makeAIMove, 500);
         }
 
@@ -297,26 +278,14 @@
         function renderChessBoard() {
             const boardEl = document.getElementById('board'); boardEl.innerHTML = '';
             const boardData = userColor === 'w' ? chessGame.board() : chessGame.board().reverse();
-            
             boardData.forEach((row, r) => {
                 const actualRow = userColor === 'w' ? row : row.reverse();
                 actualRow.forEach((p, c) => {
-                    const rowIdx = userColor === 'w' ? r : 7-r;
-                    const colIdx = userColor === 'w' ? c : 7-c;
-                    const id = String.fromCharCode(97+colIdx) + (8-rowIdx);
-                    
-                    const sq = document.createElement('div');
-                    sq.className = `square ${(rowIdx+colIdx)%2===0?'white-sq':'black-sq'} ${selectedSq === id ? 'selected' : ''}`;
+                    const rowIdx = userColor === 'w' ? r : 7-r; const colIdx = userColor === 'w' ? c : 7-c; const id = String.fromCharCode(97+colIdx) + (8-rowIdx);
+                    const sq = document.createElement('div'); sq.className = `square ${(rowIdx+colIdx)%2===0?'white-sq':'black-sq'} ${selectedSq === id ? 'selected' : ''}`;
                     sq.onclick = () => handleChessMove(id);
-                    if(p) {
-                        const div = document.createElement('div'); div.className = `piece ${p.color==='w'?'wood-w':'wood-b'}`;
-                        div.style.backgroundImage = `url(https://raw.githubusercontent.com/lichess-org/lila/master/public/piece/merida/${p.color}${p.type.toUpperCase()}.svg)`;
-                        sq.appendChild(div);
-                    }
-                    if (evalMarker.square === id) {
-                        const m = document.createElement('div'); m.className = 'eval-icon'; m.innerText = evalMarker.type; m.style.background = evalMarker.color;
-                        sq.appendChild(m);
-                    }
+                    if(p) { const div = document.createElement('div'); div.className = `piece ${p.color==='w'?'wood-w':'wood-b'}`; div.style.backgroundImage = `url(https://raw.githubusercontent.com/lichess-org/lila/master/public/piece/merida/${p.color}${p.type.toUpperCase()}.svg)`; sq.appendChild(div); }
+                    if (evalMarker.square === id) { const m = document.createElement('div'); m.className = 'eval-icon'; m.innerText = evalMarker.type; m.style.background = evalMarker.color; sq.appendChild(m); }
                     boardEl.appendChild(sq);
                 });
             });
@@ -326,51 +295,270 @@
 
         function handleChessMove(id) {
             if(chessGame.turn() !== userColor || chessGame.game_over()) return;
-            if(!selectedSq) {
-                let p = chessGame.get(id); if(p && p.color === userColor) { selectedSq = id; renderChessBoard(); }
-            } else {
+            if(!selectedSq) { let p = chessGame.get(id); if(p && p.color === userColor) { selectedSq = id; renderChessBoard(); } } 
+            else {
                 let move = chessGame.move({from: selectedSq, to: id, promotion: 'q'});
                 if(move) {
                     let curEval = evalBoard(chessGame); let diff = (userColor === 'w' ? curEval - lastEval : lastEval - curEval);
                     if (chessGame.in_checkmate()) evalMarker = { square: id, type: '!!', color: '#00f2ff' };
-                    else if(diff > 150) evalMarker = { square: id, type: '!!', color: '#00f2ff' };
-                    else if(diff > 50) evalMarker = { square: id, type: '!', color: '#4caf50' };
-                    else if(diff > -50) evalMarker = { square: id, type: '-', color: '#777' };
-                    else if(diff > -150) evalMarker = { square: id, type: '?', color: '#ffa500' };
+                    else if(diff > 150) evalMarker = { square: id, type: '!!', color: '#00f2ff' }; else if(diff > 50) evalMarker = { square: id, type: '!', color: '#4caf50' };
+                    else if(diff > -50) evalMarker = { square: id, type: '-', color: '#777' }; else if(diff > -150) evalMarker = { square: id, type: '?', color: '#ffa500' };
                     else evalMarker = { square: id, type: '??', color: '#ff4141' };
-                    lastEval = curEval; selectedSq = null; renderChessBoard(); 
-                    setTimeout(makeAIMove, 300); // Async call to prevent UI hang
+                    lastEval = curEval; selectedSq = null; renderChessBoard(); setTimeout(makeAIMove, 300);
                 } else { selectedSq = (chessGame.get(id)?.color === userColor) ? id : null; renderChessBoard(); }
             }
         }
 
         function makeAIMove() {
             if (chessGame.game_over()) return;
-            const depth = aiLevel === 'pro' ? 3 : 2;
-            let moves = getOrderedMoves(chessGame);
-            let bestVal = chessGame.turn() === 'w' ? -99999 : 99999;
-            let bestMove = moves[0];
-
-            // AI thinking logic
+            const depth = aiLevel === 'pro' ? 3 : 2; let moves = getOrderedMoves(chessGame); let bestVal = chessGame.turn() === 'w' ? -99999 : 99999; let bestMove = moves[0];
             moves.forEach(m => {
-                chessGame.move(m);
-                let v = minimax(chessGame, depth - 1, -100000, 100000, chessGame.turn() === 'w');
-                chessGame.undo();
-                if(chessGame.turn() === 'w') {
-                    if(v > bestVal) { bestVal = v; bestMove = m; }
-                } else {
-                    if(v < bestVal) { bestVal = v; bestMove = m; }
-                }
+                chessGame.move(m); let v = minimax(chessGame, depth - 1, -100000, 100000, chessGame.turn() === 'w'); chessGame.undo();
+                if(chessGame.turn() === 'w') { if(v > bestVal) { bestVal = v; bestMove = m; } } else { if(v < bestVal) { bestVal = v; bestMove = m; } }
             });
-
-            chessGame.move(bestMove);
-            renderChessBoard();
+            chessGame.move(bestMove); renderChessBoard();
         }
 
         function exitChessMatch() { clearInterval(chessTimer); document.getElementById('chess-board-wrapper').style.display = 'none'; document.getElementById('chess-setup-menu').style.display = 'block'; document.getElementById('exit-match').style.display = 'none'; document.getElementById('win-banner').style.display = 'none'; chessGame = new Chess(); selectedSq = null; lastEval = 0; evalMarker = {square:null}; }
         function endChessMatch(msg) { clearInterval(chessTimer); const banner = document.getElementById('win-banner'); banner.innerText = msg; banner.style.display = 'flex'; }
+        // --- DESCENT GAME ENGINE (SCOPED) ---
+        let gameW, gameH;
+        const GRAVITY = 0.75; const FRICTION = 0.84; const GROUND_Y = 140; const WORLD_LIMIT = 50000;
+        let dCameraX = 0, dShake = 0, dFrame = 0, dKeys = {}, dMouse = { x: 0, y: 0, clicked: false };
+        let particles = [], arrows = [], bloodDecals = [], crystals = [], enemies = [], lamps = [];
+        let masterKey = null, dHasWon = false;
 
-        // --- MAIN LOOP ---
+        class Arrow {
+            constructor(x, y, angle) {
+                this.x = x; this.y = y; this.vx = Math.cos(angle) * 20; this.vy = Math.sin(angle) * 20;
+                this.angle = angle; this.life = 200; this.active = true;
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy; this.life--;
+                if (this.y > gameH - GROUND_Y) this.active = false;
+                enemies.forEach(e => {
+                    if (this.active && e.hp > 0 && this.x > e.x && this.x < e.x + e.w && this.y > e.y && this.y < e.y + e.h) {
+                        e.takeHit(20, Math.sign(this.vx)); this.active = false;
+                    }
+                });
+            }
+            draw(ctx) {
+                ctx.save(); ctx.translate(this.x - dCameraX, this.y); ctx.rotate(this.angle);
+                ctx.fillStyle = "#0ff"; ctx.fillRect(-10, -1, 20, 2); ctx.restore();
+            }
+        }
+
+        class Player {
+            constructor() {
+                this.x = 400; this.y = 0; this.vx = 0; this.vy = 0; this.w = 34; this.h = 68; this.facing = 1;
+                this.grounded = false; this.hp = 100; this.stamina = 100; this.state = 'idle'; this.anim = 0; 
+                this.slashTime = 0; this.isDead = false; this.shielding = false; this.hasKey = false; this.bowDrawn = false;
+            }
+            update() {
+                if (this.isDead || dHasWon) return;
+                this.shielding = dKeys['KeyS'] && this.stamina > 0 && this.grounded && !dKeys['KeyQ'];
+                this.bowDrawn = dKeys['KeyQ'] && this.stamina > 12;
+                
+                if (this.shielding) {
+                    this.stamina = Math.max(0, this.stamina - 0.5); this.vx *= 0.5;
+                } else if (this.bowDrawn) {
+                    this.stamina = Math.max(0, this.stamina - 0.5); this.vx *= 0.3;
+                    if (dMouse.clicked && dFrame % 15 === 0 && this.stamina >= 12) {
+                        const angle = Math.atan2(dMouse.y - (this.y + this.h/2), (dMouse.x + dCameraX) - (this.x + this.w/2));
+                        arrows.push(new Arrow(this.x + this.w/2, this.y + this.h/2, angle));
+                        this.stamina -= 12; dShake = 7;
+                    }
+                } else if (this.state !== 'slash') { this.stamina = Math.min(100, this.stamina + 0.5); }
+
+                if (!this.shielding && !this.bowDrawn) {
+                    if (dKeys['KeyA']) { this.vx -= 1.4; this.facing = -1; }
+                    if (dKeys['KeyD']) { this.vx += 1.4; this.facing = 1; }
+                    if (dKeys['KeyW'] && this.grounded && this.state !== 'slash') { this.vy = -17; this.grounded = false; this.createDust(8); }
+                    if (dKeys['Space'] && this.state !== 'slash' && this.stamina >= 30) {
+                        this.state = 'slash'; this.slashTime = 0; this.stamina -= 30; this.performAttack();
+                    }
+                }
+                this.vx *= FRICTION; this.vy += GRAVITY; this.x += this.vx; this.y += this.vy;
+                this.x = Math.max(0, Math.min(this.x, WORLD_LIMIT));
+
+                if (this.x >= WORLD_LIMIT - 100 && this.hasKey) { dHasWon = true; document.getElementById('win-screen').style.display = 'flex'; }
+                if (masterKey && !this.hasKey) { let d = Math.abs((this.x + this.w/2) - masterKey.x); if (d < 50) { this.hasKey = true; document.getElementById('key-status').style.display = 'block'; } }
+
+                const floor = gameH - GROUND_Y - this.h;
+                if (this.y > floor) { if (!this.grounded && this.vy > 5) this.createDust(5); this.y = floor; this.vy = 0; this.grounded = true; }
+
+                if (this.state === 'slash') { this.slashTime++; if (this.slashTime > 20) this.state = 'idle'; } 
+                else if (!this.grounded) { this.state = 'jump'; }
+                else if (Math.abs(this.vx) > 0.6) { this.state = 'run'; this.anim += Math.abs(this.vx) * 0.06; }
+                else { this.state = 'idle'; this.anim = 0; }
+
+                dCameraX += (this.x - gameW * 0.4 - dCameraX) * 0.08;
+                dCameraX = Math.max(0, Math.min(dCameraX, WORLD_LIMIT - gameW));
+
+                document.getElementById('g-hp-bar').style.width = this.hp + "%"; document.getElementById('g-sp-bar').style.width = this.stamina + "%";
+                document.getElementById('depth-val').innerText = Math.floor(WORLD_LIMIT - this.x);
+                if (this.hp <= 0) { this.isDead = true; document.getElementById('death-screen').style.display = 'flex'; }
+            }
+            createDust(count) { for(let i=0; i<count; i++) particles.push(new Particle(this.x + this.w/2, this.y + this.h, "#444", true)); }
+            performAttack() {
+                let range = 110; let hitBoxX = this.x + (this.w/2) + (this.facing * 55); let damage = 40;
+                if (!this.grounded) { damage = 80; range *= 1.35; hitBoxX = this.x + (this.w/2) + (this.facing * 65); }
+                let hitAny = false;
+                enemies.forEach(e => { if (e.hp > 0 && Math.abs(hitBoxX - (e.x + e.w / 2)) < range && Math.abs(this.y - e.y) < 130) { e.takeHit(damage, this.facing); hitAny = true; } });
+                crystals.forEach(c => { if (c.active && Math.abs(hitBoxX - c.x) < range) { c.shatter(); this.hp = Math.min(100, this.hp + 15); this.stamina = Math.min(100, this.stamina + 40); hitAny = true; } });
+                if (hitAny) { dShake = 12; this.createSpark(hitBoxX, this.y + 30, 15); }
+            }
+            createSpark(x, y, count) { for (let i = 0; i < count; i++) particles.push(new Particle(x, y, "#0ff", false, true)); }
+            draw(ctx) {
+                ctx.save(); ctx.translate(this.x - dCameraX + this.w / 2, this.y + this.h / 2);
+                if (this.shielding) { ctx.beginPath(); ctx.arc(0, 0, 60, 0, Math.PI*2); ctx.strokeStyle = "rgba(0, 255, 255, 0.5)"; ctx.lineWidth = 4; ctx.stroke(); ctx.fillStyle = "rgba(0, 255, 255, 0.1)"; ctx.fill(); }
+                if (this.bowDrawn) {
+                    const angle = Math.atan2(dMouse.y - (this.y + this.h/2), (dMouse.x + dCameraX) - (this.x + this.w/2));
+                    ctx.beginPath(); ctx.strokeStyle = "rgba(0, 255, 255, 0.2)"; ctx.setLineDash([5, 10]); ctx.moveTo(0,0); ctx.lineTo(Math.cos(angle) * 300, Math.sin(angle) * 300); ctx.stroke(); ctx.setLineDash([]);
+                }
+                ctx.scale(this.facing, 1); ctx.fillStyle = "#020205"; ctx.strokeStyle = "#10101a"; ctx.lineWidth = 2;
+                let legAngle = Math.sin(this.anim); let armAngle = Math.cos(this.anim);
+                const drawLimb = (ox, oy, ang, len, isArm = false) => { ctx.save(); ctx.translate(ox, oy); let rot = this.state === 'run' ? ang * 0.6 : (this.state === 'jump' ? (isArm ? -0.8 : 0.4) : 0); ctx.rotate(rot); ctx.fillRect(-4, 0, 8, len); ctx.translate(0, len - 2); ctx.rotate(this.state === 'run' ? Math.abs(ang) * 0.5 : 0); ctx.fillRect(-3, 0, 6, len); ctx.restore(); };
+                drawLimb(-6, 12, legAngle, 22); drawLimb(6, 12, -legAngle, 22); drawLimb(-8, -10, armAngle, 18, true);
+                let bob = this.state === 'idle' ? Math.sin(dFrame * 0.05) * 2 : 0;
+                ctx.fillRect(-14, -20 + bob, 28, 40); ctx.beginPath(); ctx.arc(3, -28 + bob, 10, 0, Math.PI * 2); ctx.fill();
+                ctx.save(); ctx.translate(0, -10 + bob);
+                if (this.bowDrawn) { ctx.strokeStyle = "#0ff"; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(10, 0, 25, -Math.PI/2, Math.PI/2); ctx.stroke(); } 
+                else if (this.state === 'slash') { let p = this.slashTime / 20; ctx.rotate(-1.2 + p * 4); ctx.fillStyle = "rgba(0, 255, 255, " + (1 - p) + ")"; ctx.fillRect(10, -2, 80, 4 + p * 10); ctx.fillStyle = "#fff"; ctx.fillRect(0, -2, 70, 4); } 
+                else { ctx.rotate(this.state === 'run' ? -armAngle * 0.4 : 0.2); ctx.fillRect(-4, 0, 8, 25); ctx.fillStyle = "#111"; ctx.fillRect(-2, 22, 4, 40); }
+                ctx.restore(); ctx.restore();
+            }
+        }
+
+        class Enemy {
+            constructor(x, type) {
+                this.x = x; this.type = type; this.w = type === 'goliath' ? 70 : (type === 'boss' ? 120 : 40); this.h = type === 'goliath' ? 110 : (type === 'boss' ? 180 : 70);
+                this.y = gameH - GROUND_Y - this.h; this.hp = type === 'goliath' ? 250 : (type === 'boss' ? 1500 : 60); this.maxHp = this.hp; this.vx = 0; this.hitStun = 0; 
+                this.speed = type === 'goliath' ? 1.2 : (type === 'boss' ? 2.3 : 3.8); this.rodCharge = 0; this.rodActive = 0; this.slashCharge = 0; this.isSlashing = 0;
+            }
+            takeHit(dmg, dir) {
+                if (this.hitStun > 0 && this.type === 'boss') dmg *= 0.5;
+                this.hp -= dmg; this.hitStun = 12; this.vx = dir * (this.type === 'goliath' || this.type === 'boss' ? 2 : 15);
+                dShake = this.type === 'goliath' ? 15 : (this.type === 'boss' ? 25 : 8);
+                for(let i=0; i<15; i++) particles.push(new Particle(this.x + this.w/2, this.y + this.h/2, "#f00", true));
+                if (this.hp <= 0) { bloodDecals.push({x: this.x, w: this.w * 2}); if (this.type === 'boss') masterKey = { x: this.x + this.w/2, y: gameH - GROUND_Y - 20 }; }
+            }
+            update(player) {
+                if (this.hp <= 0 || dHasWon) return;
+                if (this.hitStun > 0) this.hitStun--;
+                let d = player.x - this.x;
+                if (this.type === 'boss') {
+                    if (this.x < WORLD_LIMIT - 1500) { this.vx += 0.8; }
+                    if (this.rodActive > 0) { this.rodActive--; if (Math.abs(d) < 1200 && dFrame % 5 === 0) { if (player.shielding) { player.stamina -= 2; } else { player.hp -= 40; player.vx = Math.sign(d) * 30; } dShake = 30; } } 
+                    else if (Math.abs(d) < 1000) { this.rodCharge++; if (this.rodCharge > 450) { this.rodCharge = 0; this.rodActive = 30; } }
+                    this.vx += Math.sign(d) * 0.4;
+                }
+                if (this.type === 'sentinel') {
+                    if (Math.abs(d) < 180 && this.isSlashing <= 0) { this.slashCharge++; if (this.slashCharge > 40) { this.isSlashing = 25; this.slashCharge = 0; } } 
+                    else if (this.isSlashing > 0) { this.isSlashing--; if (Math.abs(d) < 90 && dFrame % 5 === 0) { if (player.shielding) { player.stamina -= 1; } else { player.hp -= 6; } } }
+                }
+                if (this.hitStun === 0) { this.vx += Math.sign(d) * 0.6; this.vx = Math.max(-this.speed, Math.min(this.speed, this.vx)); } else { this.vx *= 0.9; }
+                this.x += this.vx;
+                const contactRange = this.type === 'boss' ? 20 : this.w;
+                if (Math.abs(d) < contactRange && dFrame % 40 === 0) {
+                    let dmg = (this.type === 'goliath' ? 30 : (this.type === 'boss' ? 50 : 12));
+                    if (player.shielding) { player.stamina -= dmg * 0.1; player.vx = Math.sign(d) * 10; } else { player.hp -= dmg; player.vx = Math.sign(d) * 20; }
+                    dShake = 20;
+                }
+            }
+            draw(ctx) {
+                if (this.hp <= 0) return; let sx = this.x - dCameraX; if (sx < -400 || sx > gameW + 400) return;
+                if (this.type === 'boss' && this.rodActive > 0) { ctx.fillStyle = "#fff"; ctx.shadowBlur = 40; ctx.shadowColor = "#f00"; ctx.fillRect(sx - 1000, this.y + this.h/2 - 15, 2000, 30); ctx.shadowBlur = 0; }
+                ctx.save(); ctx.translate(sx, this.y);
+                if (this.slashCharge > 25 || (this.type === 'boss' && this.rodCharge > 350)) { ctx.shadowBlur = 30; ctx.shadowColor = "#f00"; ctx.strokeStyle = "#f00"; ctx.lineWidth = 4; ctx.strokeRect(-10, -10, this.w + 20, this.h + 20); }
+                ctx.fillStyle = this.hitStun > 0 ? "#fff" : (this.type === 'sentinel' ? "#05050a" : "#0a0505"); ctx.fillRect(0, 0, this.w, this.h);
+                if (this.type === 'sentinel') { ctx.save(); ctx.translate(this.w/2, 30); let baseAngle = (this.isSlashing > 0) ? -1.5 + (1 - (this.isSlashing / 25)) * 3.0 : -1.5; ctx.rotate(baseAngle); ctx.fillStyle = this.slashCharge > 20 ? "#f00" : "#333"; ctx.fillRect(0, -3, 70, 6); ctx.restore(); }
+                ctx.fillStyle = "#f00"; let eyePulse = Math.sin(dFrame * 0.1) * 2;
+                if (this.type === 'goliath' || this.type === 'boss') { ctx.fillRect(this.w * 0.2, 20, 10 + eyePulse, 5); ctx.fillRect(this.w * 0.7, 20, 10 + eyePulse, 5); } else { ctx.fillRect(this.w/2 - 5, 20, 10 + eyePulse, 5); }
+                ctx.fillStyle = "#111"; ctx.fillRect(0, -15, this.w, 8); ctx.fillStyle = "#f00"; ctx.fillRect(0, -15, this.w * (this.hp / this.maxHp), 8); ctx.restore();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color, isDust = false, isSpark = false) { this.x = x; this.y = y; this.vx = (Math.random() - 0.5) * (isSpark ? 20 : 10); this.vy = (Math.random() - 1) * 10; this.life = 1.0; this.color = color; this.size = Math.random() * 4 + 2; }
+            update() { this.x += this.vx; this.y += this.vy; this.vy += 0.4; this.life -= 0.02; if (this.y > gameH - GROUND_Y) { this.y = gameH - GROUND_Y; this.vx *= 0.5; this.vy *= -0.3; } }
+            draw(ctx) { ctx.globalAlpha = this.life; ctx.fillStyle = this.color; ctx.fillRect(this.x - dCameraX, this.y, this.size, this.size); ctx.globalAlpha = 1; }
+        }
+
+        class Crystal {
+            constructor(x) { this.x = x; this.y = window.innerHeight - GROUND_Y - 30; this.active = true; }
+            shatter() { this.active = false; for(let i=0; i<20; i++) particles.push(new Particle(this.x, this.y, "#0f8")); }
+            draw(ctx) { if (!this.active) return; let sx = this.x - dCameraX; ctx.fillStyle = "#0f8"; ctx.shadowBlur = 15; ctx.shadowColor = "#0f8"; ctx.beginPath(); ctx.moveTo(sx, this.y + 20); ctx.lineTo(sx - 10, this.y); ctx.lineTo(sx, this.y - 20); ctx.lineTo(sx + 10, this.y); ctx.fill(); ctx.shadowBlur = 0; }
+        }
+
+        class Lamp {
+            constructor(x) { this.x = x; this.y = 50 + Math.random() * 50; }
+            draw(ctx) { let sx = this.x - dCameraX; if (sx < -50 || sx > gameW + 50) return; ctx.fillStyle = "#0ff"; ctx.shadowBlur = 25; ctx.shadowColor = "#0ff"; ctx.beginPath(); let r = 6; ctx.moveTo(sx - 12 + r, this.y); ctx.arcTo(sx + 12, this.y, sx + 12, this.y + 24, r); ctx.arcTo(sx + 12, this.y + 24, sx - 12, this.y + 24, r); ctx.arcTo(sx - 12, this.y + 24, sx - 12, this.y, r); ctx.arcTo(sx - 12, this.y, sx + 12, this.y, r); ctx.fill(); ctx.strokeStyle = "#444"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, this.y); ctx.stroke(); ctx.shadowBlur = 0; }
+        }
+        let playerPlayer; // Single instance
+        const stalactites = [];
+        let dListenersAdded = false;
+
+        function restartDescent() {
+            document.getElementById('death-screen').style.display = 'none';
+            document.getElementById('win-screen').style.display = 'none';
+            document.getElementById('key-status').style.display = 'none';
+            
+            // Reset global variables and clear arrays
+            dCameraX = 0; dShake = 0; dFrame = 0;
+            particles = []; arrows = []; bloodDecals = []; crystals = []; enemies = []; lamps = [];
+            stalactites.length = 0; masterKey = null; dHasWon = false;
+            
+            // Re-initialize the world and player
+            initDescentGame();
+        }
+
+        function initDescentGame() {
+            if (!dListenersAdded) {
+                window.addEventListener('keydown', e => dKeys[e.code] = true);
+                window.addEventListener('keyup', e => dKeys[e.code] = false);
+                canvases.shadows.addEventListener('mousemove', e => { dMouse.x = e.clientX; dMouse.y = e.clientY; });
+                canvases.shadows.addEventListener('mousedown', () => { dMouse.clicked = true; });
+                canvases.shadows.addEventListener('mouseup', () => { dMouse.clicked = false; });
+                dListenersAdded = true;
+            }
+            
+            playerPlayer = new Player();
+            for(let i=0; i<WORLD_LIMIT; i+= 400) {
+                stalactites.push({x: i, h: 100 + Math.random() * 300, w: 40 + Math.random() * 60});
+                if (i > 1000 && i < WORLD_LIMIT - 2000) {
+                    if (Math.random() > 0.7) enemies.push(new Enemy(i, Math.random() > 0.8 ? 'goliath' : 'sentinel'));
+                    if (Math.random() > 0.8) crystals.push(new Crystal(i + 200));
+                }
+                if (i > 3000 && i % 2400 === 0) lamps.push(new Lamp(i));
+            }
+            enemies.push(new Enemy(WORLD_LIMIT - 600, 'boss'));
+        }
+
+        function drawAtmosphere(ctx) {
+            let grad = ctx.createLinearGradient(0, 0, 0, gameH);
+            grad.addColorStop(0, "#05050a"); grad.addColorStop(0.5, "#0a0a1a"); grad.addColorStop(1, "#1a1a2e");
+            ctx.fillStyle = grad; ctx.fillRect(0, 0, gameW, gameH);
+            ctx.fillStyle = "rgba(0,0,0,0.3)";
+            for(let i=0; i<WORLD_LIMIT; i+= 600) { let px = (i * 0.5) - (dCameraX * 0.3); ctx.fillRect(px, 0, 100, gameH); }
+            ctx.fillStyle = "#020205";
+            stalactites.forEach(s => { let sx = s.x - dCameraX; ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx + s.w/2, s.h); ctx.lineTo(sx + s.w, 0); ctx.fill(); });
+            ctx.fillStyle = "#010103"; ctx.fillRect(0, gameH - GROUND_Y, gameW, GROUND_Y);
+            bloodDecals.forEach(b => { ctx.fillStyle = "#300"; ctx.fillRect(b.x - dCameraX, gameH - GROUND_Y, b.w, 5); });
+            lamps.forEach(l => l.draw(ctx));
+            if (masterKey && !playerPlayer.hasKey) { ctx.fillStyle = "#ff0"; ctx.shadowBlur = 20; ctx.shadowColor = "#ff0"; ctx.fillRect(masterKey.x - dCameraX - 5, masterKey.y - 10, 10, 20); ctx.shadowBlur = 0; }
+            let coreX = WORLD_LIMIT - dCameraX; ctx.fillStyle = "#0ff"; ctx.shadowBlur = 50; ctx.shadowColor = "#0ff"; ctx.fillRect(coreX - 100, 0, 100, gameH); ctx.shadowBlur = 0;
+        }
+
+        function drawLighting(ctx) {
+            let lx = playerPlayer.x - dCameraX + playerPlayer.w/2; let ly = playerPlayer.y + playerPlayer.h/2;
+            let rad = (playerPlayer.state === 'slash' ? 800 : 500) + (playerPlayer.shielding ? 100 : 0);
+            let g = ctx.createRadialGradient(lx, ly, 50, lx, ly, rad);
+            g.addColorStop(0, "rgba(255,255,255,0.15)"); g.addColorStop(1, "rgba(0,0,0,0.7)");
+            ctx.fillStyle = g; ctx.globalCompositeOperation = "multiply"; ctx.fillRect(0,0,gameW,gameH); ctx.globalCompositeOperation = "source-over";
+        }
+
+        // --- GLOBAL SYSTEM LOOP ---
         function loop() {
             if (currentMode === 'ocean') drawOcean();
             else if (currentMode === 'rain') {
@@ -385,25 +573,31 @@
                 silk_lines.forEach(l => { l.update(); ctxs.silk.beginPath(); ctxs.silk.strokeStyle = l.c; ctxs.silk.globalAlpha = 1; l.hist.forEach((p, j) => j===0 ? ctxs.silk.moveTo(p.x, p.y) : ctxs.silk.lineTo(p.x, p.y)); ctxs.silk.stroke(); }); silkTime += 0.0015;
             } else if (currentMode === 'ripple') {
                 ctxs.ripple.fillStyle = '#000'; ctxs.ripple.fillRect(0,0,canvases.ripple.width, canvases.ripple.height);
-                ripple_grid.forEach(p => { 
-                    p.vx += (p.ox - p.x)*0.06; p.vy += (p.oy - p.y)*0.06; p.vx *= 0.85; p.vy *= 0.85; p.x += p.vx; p.y += p.vy;
-                    let s = Math.sqrt(p.vx*p.vx+p.vy*p.vy);
-                    ctxs.ripple.fillStyle = `rgb(0, ${100 + s*10}, 255)`;
-                    ctxs.ripple.beginPath(); ctxs.ripple.arc(p.x, p.y, 3.5 + s/4.5, 0, Math.PI*2); ctxs.ripple.fill();
-                });
+                ripple_grid.forEach(p => { p.vx += (p.ox - p.x)*0.06; p.vy += (p.oy - p.y)*0.06; p.vx *= 0.85; p.vy *= 0.85; p.x += p.vx; p.y += p.vy; let s = Math.sqrt(p.vx*p.vx+p.vy*p.vy); ctxs.ripple.fillStyle = `rgb(0, ${100 + s*10}, 255)`; ctxs.ripple.beginPath(); ctxs.ripple.arc(p.x, p.y, 3.5 + s/4.5, 0, Math.PI*2); ctxs.ripple.fill(); });
+            } else if (currentMode === 'shadows' && playerPlayer && !playerPlayer.isDead && !dHasWon) {
+                dFrame++; const c = ctxs.shadows;
+                if (dShake > 0) { c.save(); c.translate((Math.random()-0.5)*dShake, (Math.random()-0.5)*dShake); dShake *= 0.9; }
+                drawAtmosphere(c); crystals.forEach(cr => cr.draw(c));
+                arrows = arrows.filter(a => a.active && a.life > 0); arrows.forEach(a => { a.update(); a.draw(c); });
+                enemies.forEach(e => { e.update(playerPlayer); e.draw(c); });
+                playerPlayer.update(); playerPlayer.draw(c);
+                particles = particles.filter(p => p.life > 0); particles.forEach(p => { p.update(); p.draw(c); });
+                drawLighting(c);
+                if (dShake > 0) c.restore();
             }
             requestAnimationFrame(loop);
         }
 
+        // --- NAVIGATION HANDLER ---
         function setMode(mode) {
             currentMode = mode;
             document.querySelectorAll('.nav-text').forEach(el => el.classList.remove('active'));
             document.getElementById('btn-' + mode).classList.add('active');
             Object.keys(canvases).forEach(k => { document.getElementById(k + '-container').style.display = k === mode ? 'block' : 'none'; });
             document.getElementById('chess-container').style.display = mode === 'chess' ? 'flex' : 'none';
-            if (mode === 'ripple') setupRipple();
-            if (mode === 'ocean') setupOcean();
-            if (mode === 'chess' && !chessGame.game_over()) renderChessBoard();
+            document.getElementById('game-hud').style.display = mode === 'shadows' ? 'block' : 'none';
+            document.getElementById('depth-meter').style.display = mode === 'shadows' ? 'block' : 'none';
+            if (mode === 'ripple') setupRipple(); if (mode === 'ocean') setupOcean(); if (mode === 'chess' && !chessGame.game_over()) renderChessBoard();
         }
 
         window.onload = () => passInput.focus();
