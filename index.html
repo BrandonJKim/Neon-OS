@@ -262,14 +262,21 @@
         // --- DEVICE ORIENTATION CHECK ---
         function checkOrientation() {
             const overlay = document.getElementById('rotate-overlay');
-            if (!overlay) return; // Safety check just in case
+            if (!overlay) return;
 
-            // If the height is greater than the width (Portrait) AND the game is running
-            if (window.innerHeight > window.innerWidth && currentMode === 'shadows') {
-                overlay.style.display = 'flex';
-            } else {
-                overlay.style.display = 'none';
-            }
+            // Use a small delay (250ms) to let the mobile browser finish rotating
+            setTimeout(() => {
+                const isPortrait = window.innerHeight > window.innerWidth;
+
+                // Condition 1: Must be in shadows mode
+                // Condition 2: Must be in portrait
+                if (currentMode === 'shadows' && isPortrait) {
+                    overlay.style.display = 'flex';
+                } else {
+                    // Hide it if we rotate to landscape OR if we aren't in shadows
+                    overlay.style.display = 'none';
+                }
+            }, 250); 
         }
         // Listen for screen flips and resizing
         window.addEventListener('resize', checkOrientation);
@@ -821,6 +828,7 @@ let slingStart = null, slingCurrent = null, isSlinging = false;
                 }
             } else {
                 document.body.classList.remove('playing-shadows');
+                const overlay = document.getElementById('rotate-overlay');
                 if (overlay) overlay.style.display = 'none';
         
                 if (screen.orientation && screen.orientation.unlock) {
