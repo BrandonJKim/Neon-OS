@@ -6,6 +6,38 @@
     <title>NeonOS</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <style>
+        #rotate-overlay {
+            display: none; /* Hidden by default */
+            position: fixed;
+            inset: 0;
+            background: #05050a;
+            color: #0ff;
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Orbitron', sans-serif;
+            text-align: center;
+        }
+
+        .rotate-icon {
+            font-size: 50px;
+            margin-bottom: 20px;
+            animation: rotateAnim 2s infinite;
+        }
+
+        @keyframes rotateAnim {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(90deg); }
+            100% { transform: rotate(0deg); }
+        }
+
+        /* Force show if the device is in portrait and trying to play shadows */
+        @media screen and (orientation: portrait) {
+            .playing-shadows #rotate-overlay {
+                display: flex;
+            }
+        }
         #mobile-controls {
             position: absolute; bottom: 40px; width: 100%; display: none;
             justify-content: space-between; padding: 0 40px; box-sizing: border-box; z-index: 1000;
@@ -173,7 +205,12 @@
                 <button class="chess-btn" style="font-size: 14px; font-weight: bold; margin-top: 10px;" onclick="restartDescent()">ASCEND (RESTART)</button>
             </div>
             <canvas id="gameCanvas"></canvas>
+            <div id="rotate-overlay">
+                <div class="rotate-icon">🔄</div>
+                <p>PLEASE ROTATE TO LANDSCAPE TO PLAY</p>
+            </div>
         </div>
+        
     </div>
     <script>
         // --- GLOBAL OS STATE ---
@@ -222,6 +259,21 @@
             gameW = window.innerWidth; gameH = window.innerHeight; // For Descent
         }
         window.addEventListener('resize', resize);
+        // --- DEVICE ORIENTATION CHECK ---
+        function checkOrientation() {
+            const overlay = document.getElementById('rotate-overlay');
+            if (!overlay) return; // Safety check just in case
+
+            // If the height is greater than the width (Portrait) AND the game is running
+            if (window.innerHeight > window.innerWidth && currentMode === 'shadows') {
+                overlay.style.display = 'flex';
+            } else {
+                overlay.style.display = 'none';
+            }
+        }
+        // Listen for screen flips and resizing
+        window.addEventListener('resize', checkOrientation);
+        window.addEventListener('orientationchange', checkOrientation);
 
         // --- AMBIENCE ENGINES ---
         let silk_lines = Array.from({length: 12}, () => createSilkLine());
@@ -754,13 +806,49 @@ let slingStart = null, slingCurrent = null, isSlinging = false;
         // --- NAVIGATION HANDLER ---
         function setMode(mode) {
             currentMode = mode;
+
+            // 1. --- NEW ORIENTATION LOGIC ---
+            const overlay = document.getElementById('rotate-overlay');
+            if (mode === 'shadows') {
+                document.body.classList.add('playing-shadows');
+                checkOrientation(); // Instantly check if they are tilted correctly
+        
+                // Attempt native landscape lock
+                if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape').catch(err => {
+                        console.log("Orientation lock blocked by browser.");
+                    });
+                }
+            } else {
+                document.body.classList.remove('playing-shadows');
+                if (overlay) overlay.style.display = 'none';
+        
+                if (screen.orientation && screen.orientation.unlock) {
+                    screen.orientation.unlock();
+                }
+            }
+
+            // 2. --- YOUR ORIGINAL LOGIC (RETAINED) ---
+            // Handle Navigation Highlight
             document.querySelectorAll('.nav-text').forEach(el => el.classList.remove('active'));
-            document.getElementById('btn-' + mode).classList.add('active');
-            Object.keys(canvases).forEach(k => { document.getElementById(k + '-container').style.display = k === mode ? 'block' : 'none'; });
+            const activeBtn = document.getElementById('btn-' + mode);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            // Toggle Canvas Containers
+            Object.keys(canvases).forEach(k => { 
+                const container = document.getElementById(k + '-container');
+                if (container) container.style.display = k === mode ? 'block' : 'none'; 
+            });
+
+            // Toggle Specific Game UI Elements
             document.getElementById('chess-container').style.display = mode === 'chess' ? 'flex' : 'none';
             document.getElementById('game-hud').style.display = mode === 'shadows' ? 'block' : 'none';
             document.getElementById('depth-meter').style.display = mode === 'shadows' ? 'block' : 'none';
-            if (mode === 'ripple') setupRipple(); if (mode === 'ocean') setupOcean(); if (mode === 'chess' && !chessGame.game_over()) renderChessBoard();
+
+            // Mode-Specific Setup Re-initialization
+            if (mode === 'ripple') setupRipple(); 
+            if (mode === 'ocean') setupOcean(); 
+            if (mode === 'chess' && !chessGame.game_over()) renderChessBoard();
         }
 
         window.onload = () => passInput.focus();
