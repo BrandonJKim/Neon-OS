@@ -325,7 +325,7 @@
                 }
             };
         }
-        let lava_b = Array.from({length: 15}, () => ({ x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight, r: Math.random() * 70 + 40, vy: Math.random() * 0.8 + 0.4, update() { this.y -= this.vy; if(this.y < -this.r*2) this.y = window.innerHeight + this.r; } }));
+        let lava_b = Array.from({length: 15}, () => ({ x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight, r: Math.random() * 70 + 40, vy: Math.random() * 0.8 + 0.4,  { this.y -= this.vy; if(this.y < -this.r*2) this.y = window.innerHeight + this.r; } }));
         let rain_drops = [];
         function setupRain() { rain_drops = []; for(let i=0; i<window.innerWidth; i+=25) rain_drops.push({ x: i, y: Math.random() * -window.innerHeight, s: Math.random() * 6 + 3 }); }
         let ripple_grid = [];
@@ -446,7 +446,12 @@
         function endChessMatch(msg) { clearInterval(chessTimer); const banner = document.getElementById('win-banner'); banner.innerText = msg; banner.style.display = 'flex'; }
         // --- DESCENT GAME ENGINE (SCOPED) ---
         let gameW, gameH;
-        const GRAVITY = 0.75; const FRICTION = 0.84; const GROUND_Y = 140; const WORLD_LIMIT = 50000;
+        const GRAVITY = 0.75; 
+        const FRICTION = 0.84; 
+        const GROUND_Y = 140; 
+        const WORLD_LIMIT = 100000;  // <-- Changed from 50000
+        const ANTIGRAVITY_START = 50000;
+        const ANTIGRAVITY_END = 75000;
         let dCameraX = 0, dShake = 0, dFrame = 0, dKeys = {}, dMouse = { x: 0, y: 0, clicked: false };
         let particles = [], arrows = [], bloodDecals = [], crystals = [], enemies = [], lamps = [];
         let masterKey = null, dHasWon = false;
@@ -456,7 +461,7 @@
                 this.x = x; this.y = y; this.vx = Math.cos(angle) * 20; this.vy = Math.sin(angle) * 20;
                 this.angle = angle; this.life = 200; this.active = true;
             }
-            update() {
+             {
                 this.x += this.vx; this.y += this.vy; this.life--;
                 if (this.y > gameH - GROUND_Y) this.active = false;
                 enemies.forEach(e => {
@@ -478,7 +483,7 @@ let slingStart = null, slingCurrent = null, isSlinging = false;
                 this.grounded = false; this.hp = 100; this.stamina = 100; this.state = 'idle'; this.anim = 0; 
                 this.slashTime = 0; this.isDead = false; this.shielding = false; this.hasKey = false; this.bowDrawn = false;
             }
-            update() {
+             {
                 if (this.isDead || dHasWon) return;
                 this.shielding = dKeys['KeyS'] && this.stamina > 0 && this.grounded && !dKeys['KeyQ'];
                 this.bowDrawn = dKeys['KeyQ'] && this.stamina > 12;
@@ -680,6 +685,158 @@ let slingStart = null, slingCurrent = null, isSlinging = false;
                 ctx.restore();
             }
         }
+        
+        class Guardian {
+            constructor(x) {
+                this.x = x; 
+                this.type = 'guardian';
+                this.w = 70; 
+                this.h = 110;
+                this.y = gameH - GROUND_Y - this.h; 
+                this.hp = 300; 
+                this.maxHp = 300; 
+                this.vx = 0; 
+                this.hitStun = 0; 
+                this.speed = 1.5;
+                this.chargeTime = 0;
+                this.crystalProjectiles = [];
+            }
+
+            takeHit(dmg, dir) {
+                if (this.hitStun > 0) dmg *= 0.5;
+                this.hp -= dmg; 
+                this.hitStun = 12; 
+                this.vx = dir * 2;
+                dShake = 15;
+                for(let i=0; i<15; i++) particles.push(new Particle(this.x + this.w/2, this.y + this.h/2, "#f00", true));
+                if (this.hp <= 0) bloodDecals.push({x: this.x, w: this.w * 2});
+            }
+
+            update(player) {
+                if (this.hp <= 0 || dHasWon) return;
+                if (this.hitStun > 0) this.hitStun--;
+        
+                let d = player.x - this.x;
+        
+                // Charge up and fire crystal projectiles
+                if (Math.abs(d) < 800) {
+                    this.chargeTime++;
+                    if (this.chargeTime > 80) {
+                        this.chargeTime = 0;
+                        let angle = Math.atan2((player.y + player.h/2) - (this.y + this.h/2), (player.x + player.w/2) - (this.x + this.w/2));
+                        this.crystalProjectiles.push({
+                            x: this.x + this.w/2,
+                            y: this.y + this.h/2,
+                            vx: Math.cos(angle) * 8,
+                            vy: Math.sin(angle) * 8,
+                            life: 180
+                        });
+                    }
+                }
+
+                // Movement towards player
+                if (this.hitStun === 0) {
+                    this.vx += Math.sign(d) * 0.5;
+                    this.vx = Math.max(-this.speed, Math.min(this.speed, this.vx));
+                } else {
+                    this.vx *= 0.9;
+                }
+                this.x += this.vx;
+
+                // Contact damage
+                if (Math.abs(d) < 20 && dFrame % 40 === 0) {
+                    if (player.shielding) {
+                        player.stamina -= 3;
+                        player.vx = Math.sign(d) * 10;
+                    } else {
+                        player.hp -= 25;
+                        player.vx = Math.sign(d) * 20;
+                    }
+                    dShake = 20;
+                }
+
+                // Update projectiles
+                this.crystalProjectiles = this.crystalProjectiles.filter(p => p.life > 0);
+                this.crystalProjectiles.forEach(p => {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.life--;
+
+                    // Check collision with player
+                    if (p.x > player.x && p.x < player.x + player.w && p.y > player.y && p.y < player.y + player.h) {
+                        if (player.shielding) {
+                            player.stamina -= 5;
+                        } else {
+                            player.hp -= 15;
+                        }
+                        p.life = 0;
+                    }
+                });
+            }
+
+             draw(ctx) {
+                if (this.hp <= 0) return;
+                let sx = this.x - dCameraX;
+                if (sx < -400 || sx > gameW + 400) return;
+
+                ctx.save();
+                ctx.translate(sx, this.y);
+
+                // Navy blue guardian body
+                let navyGrad = ctx.createLinearGradient(0, 0, this.w, this.h);
+                navyGrad.addColorStop(0, "#001a4d");
+                navyGrad.addColorStop(0.2, "#003d99");
+                navyGrad.addColorStop(0.5, "#0052cc");
+                navyGrad.addColorStop(0.8, "#001f66");
+                navyGrad.addColorStop(1, "#000d26");
+
+                ctx.fillStyle = this.hitStun > 0 ? "#fff" : navyGrad;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = "rgba(0, 82, 204, 0.5)";
+                ctx.fillRect(0, 0, this.w, this.h);
+
+                // Guardian rivets
+                ctx.fillStyle = "rgba(100, 150, 255, 0.3)";
+                for(let i=0; i<4; i++) ctx.fillRect(5, 10 + (i*40), 4, 4);
+
+                // Eyes with glow
+                ctx.fillStyle = "#00ffff";
+                let eyePulse = Math.sin(dFrame * 0.1) * 2;
+                ctx.fillRect(this.w * 0.2, 20, 10 + eyePulse, 5);
+                ctx.fillRect(this.w * 0.7, 20, 10 + eyePulse, 5);
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = "#00ffff";
+                ctx.fillRect(this.w * 0.2, 20, 10 + eyePulse, 5);
+                ctx.fillRect(this.w * 0.7, 20, 10 + eyePulse, 5);
+                ctx.shadowBlur = 0;
+
+                // Health bar
+                ctx.fillStyle = "#111";
+                ctx.fillRect(0, -15, this.w, 8);
+                ctx.fillStyle = "#0ff";
+                ctx.fillRect(0, -15, this.w * (this.hp / this.maxHp), 8);
+
+                ctx.restore();
+
+                // Draw crystal projectiles
+                this.crystalProjectiles.forEach(p => {
+                    let px = p.x - dCameraX;
+                    ctx.save();
+                    ctx.translate(px, p.y);
+                    ctx.fillStyle = "#0ff";
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = "#0ff";
+                    ctx.beginPath();
+                    ctx.moveTo(0, -8);
+                    ctx.lineTo(6, 0);
+                    ctx.lineTo(0, 8);
+                    ctx.lineTo(-6, 0);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.restore();
+                });
+            }
+        }
 
         class Particle {
             constructor(x, y, color, isDust = false, isSpark = false) { this.x = x; this.y = y; this.vx = (Math.random() - 0.5) * (isSpark ? 20 : 10); this.vy = (Math.random() - 1) * 10; this.life = 1.0; this.color = color; this.size = Math.random() * 4 + 2; }
@@ -783,28 +940,89 @@ let slingStart = null, slingCurrent = null, isSlinging = false;
             playerPlayer = new Player();
             for(let i=0; i<WORLD_LIMIT; i+= 400) {
                 stalactites.push({x: i, h: 100 + Math.random() * 300, w: 40 + Math.random() * 60});
-                if (i > 1000 && i < WORLD_LIMIT - 2000) {
+        
+                if (i > 1000 && i < ANTIGRAVITY_START - 1000) {
                     if (Math.random() > 0.7) enemies.push(new Enemy(i, Math.random() > 0.8 ? 'goliath' : 'sentinel'));
                     if (Math.random() > 0.8) crystals.push(new Crystal(i + 200));
                 }
+        
                 if (i > 3000 && i % 2400 === 0) lamps.push(new Lamp(i));
             }
+    
+            // Spawn three guardians in antigravity chamber
+            enemies.push(new Guardian(ANTIGRAVITY_START + 5000));
+            enemies.push(new Guardian(ANTIGRAVITY_START + 12500));
+            enemies.push(new Guardian(ANTIGRAVITY_START + 20000));
+    
+            // Boss at the end
             enemies.push(new Enemy(WORLD_LIMIT - 600, 'boss'));
-        }
+       }
 
         function drawAtmosphere(ctx) {
             let grad = ctx.createLinearGradient(0, 0, 0, gameH);
-            grad.addColorStop(0, "#05050a"); grad.addColorStop(0.5, "#0a0a1a"); grad.addColorStop(1, "#1a1a2e");
-            ctx.fillStyle = grad; ctx.fillRect(0, 0, gameW, gameH);
+    
+            // Check if player is in antigravity chamber
+            if (playerPlayer.x >= ANTIGRAVITY_START && playerPlayer.x <= ANTIGRAVITY_END) {
+                // Antigravity chamber colors - ethereal and floating
+                grad.addColorStop(0, "#1a0033");
+                grad.addColorStop(0.5, "#2d005c");
+                grad.addColorStop(1, "#0a001a");
+            } else {
+                // Normal descent colors
+                grad.addColorStop(0, "#05050a");
+                grad.addColorStop(0.5, "#0a0a1a");
+                grad.addColorStop(1, "#1a1a2e");
+            }
+    
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, gameW, gameH);
+    
             ctx.fillStyle = "rgba(0,0,0,0.3)";
-            for(let i=0; i<WORLD_LIMIT; i+= 600) { let px = (i * 0.5) - (dCameraX * 0.3); ctx.fillRect(px, 0, 100, gameH); }
+            for(let i=0; i<WORLD_LIMIT; i+= 600) { 
+                let px = (i * 0.5) - (dCameraX * 0.3); 
+                ctx.fillRect(px, 0, 100, gameH); 
+            }
+    
+            // Antigravity chamber indicator
+            if (playerPlayer.x >= ANTIGRAVITY_START && playerPlayer.x <= ANTIGRAVITY_END) {
+                ctx.fillStyle = "rgba(100, 50, 200, 0.1)";
+                ctx.fillRect(0, 0, gameW, gameH);
+            }
+    
             ctx.fillStyle = "#020205";
-            stalactites.forEach(s => { let sx = s.x - dCameraX; ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx + s.w/2, s.h); ctx.lineTo(sx + s.w, 0); ctx.fill(); });
-            ctx.fillStyle = "#010103"; ctx.fillRect(0, gameH - GROUND_Y, gameW, GROUND_Y);
-            bloodDecals.forEach(b => { ctx.fillStyle = "#300"; ctx.fillRect(b.x - dCameraX, gameH - GROUND_Y, b.w, 5); });
+            stalactites.forEach(s => { 
+                let sx = s.x - dCameraX; 
+                ctx.beginPath(); 
+                ctx.moveTo(sx, 0); 
+                ctx.lineTo(sx + s.w/2, s.h); 
+                ctx.lineTo(sx + s.w, 0); 
+                ctx.fill(); 
+            });
+    
+            ctx.fillStyle = "#010103";
+            ctx.fillRect(0, gameH - GROUND_Y, gameW, GROUND_Y);
+    
+            bloodDecals.forEach(b => { 
+                ctx.fillStyle = "#300"; 
+                ctx.fillRect(b.x - dCameraX, gameH - GROUND_Y, b.w, 5); 
+            });
+    
             lamps.forEach(l => l.draw(ctx));
-            if (masterKey && !playerPlayer.hasKey) { ctx.fillStyle = "#ff0"; ctx.shadowBlur = 20; ctx.shadowColor = "#ff0"; ctx.fillRect(masterKey.x - dCameraX - 5, masterKey.y - 10, 10, 20); ctx.shadowBlur = 0; }
-            let coreX = WORLD_LIMIT - dCameraX; ctx.fillStyle = "#0ff"; ctx.shadowBlur = 50; ctx.shadowColor = "#0ff"; ctx.fillRect(coreX - 100, 0, gameW, gameH); ctx.shadowBlur = 0;
+    
+            if (masterKey && !playerPlayer.hasKey) { 
+                ctx.fillStyle = "#ff0"; 
+                ctx.shadowBlur = 20; 
+                ctx.shadowColor = "#ff0"; 
+                ctx.fillRect(masterKey.x - dCameraX - 5, masterKey.y - 10, 10, 20); 
+                ctx.shadowBlur = 0; 
+            }
+    
+            let coreX = WORLD_LIMIT - dCameraX; 
+            ctx.fillStyle = "#0ff"; 
+            ctx.shadowBlur = 50; 
+            ctx.shadowColor = "#0ff"; 
+            ctx.fillRect(coreX - 100, 0, gameW, gameH); 
+            ctx.shadowBlur = 0;
         }
 
         function drawLighting(ctx) {
@@ -823,7 +1041,7 @@ let slingStart = null, slingCurrent = null, isSlinging = false;
                 rain_drops.forEach(d => { ctxs.rain.fillText(Math.round(Math.random()), d.x, d.y); d.y += d.s; if(d.y > canvases.rain.height) d.y = -40; });
             } else if (currentMode === 'lava') {
                 ctxs.lava.fillStyle = "#0f051d"; ctxs.lava.fillRect(0,0,canvases.lava.width, canvases.lava.height);
-                lava_b.forEach(b => { b.update(); ctxs.lava.beginPath(); ctxs.lava.arc(b.x, b.y, b.r, 0, Math.PI*2); ctxs.lava.fillStyle = "#ff4500"; ctxs.lava.fill(); });
+                lava_b.forEach(b => { b.; ctxs.lava.beginPath(); ctxs.lava.arc(b.x, b.y, b.r, 0, Math.PI*2); ctxs.lava.fillStyle = "#ff4500"; ctxs.lava.fill(); });
             } else if (currentMode === 'silk') {
                 ctxs.silk.clearRect(0,0,canvases.silk.width, canvases.silk.height);
                 ghostTrails.forEach((g, i) => { ctxs.silk.beginPath(); ctxs.silk.strokeStyle = g.c; ctxs.silk.globalAlpha = g.o; g.s.forEach((p, j) => j===0 ? ctxs.silk.moveTo(p.x, p.y) : ctxs.silk.lineTo(p.x, p.y)); ctxs.silk.stroke(); g.o -= 0.004; if(g.o <= 0) ghostTrails.splice(i,1); });
@@ -836,7 +1054,10 @@ let slingStart = null, slingCurrent = null, isSlinging = false;
                 if (dShake > 0) { c.save(); c.translate((Math.random()-0.5)*dShake, (Math.random()-0.5)*dShake); dShake *= 0.9; }
                 drawAtmosphere(c); crystals.forEach(cr => cr.draw(c));
                 arrows = arrows.filter(a => a.active !== false && a.life > 0); arrows.forEach(a => { a.update(); a.draw(c); });
-                enemies.forEach(e => { e.update(playerPlayer); e.draw(c); });
+                enemies.forEach(e => { 
+                    e.update(playerPlayer); 
+                    e.draw(ctxs.shadows); 
+                });
                 playerPlayer.update(); playerPlayer.draw(c);
                 particles = particles.filter(p => p.life > 0); particles.forEach(p => { p.update(); p.draw(c); });
                 drawLighting(c);
