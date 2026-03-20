@@ -482,8 +482,7 @@ let slingStart = null, slingCurrent = null, isSlinging = false;
                 this.x = 400; this.y = 0; this.vx = 0; this.vy = 0; this.w = 34; this.h = 68; this.facing = 1;
                 this.grounded = false; this.hp = 100; this.stamina = 100; this.state = 'idle'; this.anim = 0; 
                 this.slashTime = 0; this.isDead = false; this.shielding = false; this.hasKey = false; this.bowDrawn = false;
-            }
-             {
+             
                 if (this.isDead || dHasWon) return;
                 this.shielding = dKeys['KeyS'] && this.stamina > 0 && this.grounded && !dKeys['KeyQ'];
                 this.bowDrawn = dKeys['KeyQ'] && this.stamina > 12;
