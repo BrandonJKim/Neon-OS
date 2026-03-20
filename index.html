@@ -486,6 +486,11 @@ let slingStart = null, slingCurrent = null, isSlinging = false;
                 if (this.isDead || dHasWon) return;
                 this.shielding = dKeys['KeyS'] && this.stamina > 0 && this.grounded && !dKeys['KeyQ'];
                 this.bowDrawn = dKeys['KeyQ'] && this.stamina > 12;
+                // Apply antigravity if in chamber
+                let gravity = GRAVITY;
+                if (this.x >= ANTIGRAVITY_START && this.x <= ANTIGRAVITY_END) {
+                    gravity = 0.1; // Reverse gravity for floating effect
+                }
                 
                 if (this.shielding) {
                     this.stamina = Math.max(0, this.stamina - 0.5); this.vx *= 0.5;
@@ -511,7 +516,7 @@ let slingStart = null, slingCurrent = null, isSlinging = false;
                         this.state = 'slash'; this.slashTime = 0; this.stamina -= 30; this.performAttack();
                     }
                 }
-                this.vx *= FRICTION; this.vy += GRAVITY; this.x += this.vx; this.y += this.vy;
+                this.vx *= FRICTION; this.vy += gravity; this.x += this.vx; this.y += this.vy;
                 this.x = Math.max(0, Math.min(this.x, WORLD_LIMIT));
 
                 if (this.x >= WORLD_LIMIT - 100 && this.hasKey) { dHasWon = true; document.getElementById('win-screen').style.display = 'flex'; }
