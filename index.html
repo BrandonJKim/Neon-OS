@@ -461,7 +461,7 @@
                 this.x = x; this.y = y; this.vx = Math.cos(angle) * 20; this.vy = Math.sin(angle) * 20;
                 this.angle = angle; this.life = 200; this.active = true;
             }
-             update() {
+            update() {
                 this.x += this.vx; this.y += this.vy; this.life--;
                 if (this.y > gameH - GROUND_Y) this.active = false;
                 enemies.forEach(e => {
@@ -475,36 +475,36 @@
                 ctx.fillStyle = "#0ff"; ctx.fillRect(-10, -1, 20, 2); ctx.restore();
             }
         }
-        let slingStart = null, slingCurrent = null, isSlinging = false;
 
         class Player {
             constructor() {
                 this.x = 400; this.y = 0; this.vx = 0; this.vy = 0; this.w = 34; this.h = 68; this.facing = 1;
                 this.grounded = false; this.hp = 100; this.stamina = 100; this.state = 'idle'; this.anim = 0; 
                 this.slashTime = 0; this.isDead = false; this.shielding = false; this.hasKey = false; this.bowDrawn = false;
-             
+            }
+            update() {
                 if (this.isDead || dHasWon) return;
-                this.shielding = dKeys['KeyS'] && this.stamina > 0 && this.grounded && !dKeys['KeyQ'];
+                  this.shielding = dKeys['KeyS'] && this.stamina > 0 && this.grounded && !dKeys['KeyQ'];
                 this.bowDrawn = dKeys['KeyQ'] && this.stamina > 12;
                 // Apply antigravity if in chamber
                 let gravity = GRAVITY;
                 if (this.x >= ANTIGRAVITY_START && this.x <= ANTIGRAVITY_END) {
-                    gravity = 0.1; // Reverse gravity for floating effect
+                    gravity = 0.1; // Reduce gravity for floating effect
                 }
-                
+        
                 if (this.shielding) {
                     this.stamina = Math.max(0, this.stamina - 0.5); this.vx *= 0.5;
                 } else if (this.bowDrawn) {
                     this.stamina = Math.max(0, this.stamina - 0.5); 
                     this.vx *= 0.3;
-    
+
                     // Only fire if the bow is actually drawn AND the mouse was clicked
-                    if (dMouse.clicked && this.stamina >= 12) {
+                    if (dMouse.clicked && this.stamina >= 12 && dKeys['KeyQ']) {
                         const angle = Math.atan2(dMouse.y - (this.y + this.h/2), (dMouse.x + dCameraX) - (this.x + this.w/2));
                         arrows.push(new Arrow(this.x + this.w/2, this.y + this.h/2, angle));
                         this.stamina -= 12; 
                         dShake = 7;
-                        dMouse.clicked = false; // <-- CRITICAL: This stops "ghost" arrows when the bow is off
+                        dMouse.clicked = false;
                     }
                 } else if (this.state !== 'slash') { this.stamina = Math.min(100, this.stamina + 0.5); }
 
