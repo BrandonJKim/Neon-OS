@@ -757,8 +757,8 @@ let slingStart = null, slingCurrent = null, isSlinging = false;
                         slingCurrent = {x: e.clientX, y: e.clientY}; 
                         isSlinging = true; 
                     } else {
-                        // Right side: Tap to Shoot
-                        if (playerPlayer && playerPlayer.stamina >= 12) {
+                        // Right side: Tap to Shoot (only if Q is pressed)
+                        if (playerPlayer && playerPlayer.stamina >= 12 && dKeys['KeyQ']) {
                             const angle = Math.atan2(e.clientY - (playerPlayer.y + playerPlayer.h/2), (e.clientX + dCameraX) - (playerPlayer.x + playerPlayer.w/2));
                             arrows.push(new Arrow(playerPlayer.x + playerPlayer.w/2, playerPlayer.y + playerPlayer.h/2, angle));
                             playerPlayer.stamina -= 12; dShake = 7;
