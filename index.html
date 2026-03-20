@@ -461,7 +461,7 @@
                 this.x = x; this.y = y; this.vx = Math.cos(angle) * 20; this.vy = Math.sin(angle) * 20;
                 this.angle = angle; this.life = 200; this.active = true;
             }
-             {
+             update() {
                 this.x += this.vx; this.y += this.vy; this.life--;
                 if (this.y > gameH - GROUND_Y) this.active = false;
                 enemies.forEach(e => {
@@ -475,7 +475,7 @@
                 ctx.fillStyle = "#0ff"; ctx.fillRect(-10, -1, 20, 2); ctx.restore();
             }
         }
-let slingStart = null, slingCurrent = null, isSlinging = false;
+        let slingStart = null, slingCurrent = null, isSlinging = false;
 
         class Player {
             constructor() {
