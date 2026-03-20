@@ -499,7 +499,7 @@
                 // Apply antigravity if in chamber
                 let gravity = GRAVITY;
                 if (this.x >= ANTIGRAVITY_START && this.x <= ANTIGRAVITY_END) {
-                    gravity = 0.5; // Reduce gravity for floating effect
+                    gravity = 0.675; // Reduce gravity for floating effect
                 }
         
                 if (this.shielding) {
@@ -741,8 +741,8 @@
                         this.crystalProjectiles.push({
                             x: this.x + this.w/2,
                             y: this.y + this.h/2,
-                            vx: Math.cos(angle) * 8,
-                            vy: Math.sin(angle) * 8,
+                            vx: Math.cos(angle) * 10,
+                            vy: Math.sin(angle) * 10,
                             life: 180
                         });
                     }
@@ -781,7 +781,7 @@
                         if (player.shielding) {
                             player.stamina -= 5;
                         } else {
-                            player.hp -= 15;
+                            player.hp -= 35;
                         }
                         p.life = 0;
                     }
