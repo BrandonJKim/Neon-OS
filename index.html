@@ -464,7 +464,8 @@
         let dCameraX = 0, dShake = 0, dFrame = 0, dKeys = {}, dMouse = { x: 0, y: 0, clicked: false };
         let particles = [], arrows = [], bloodDecals = [], crystals = [], enemies = [], lamps = [];
         let masterKey = null, dHasWon = false;
-
+        let isSlinging = false, slingStart = null, slingCurrent = null;
+        
         class Arrow {
             constructor(x, y, angle) {
                 this.x = x; this.y = y; this.vx = Math.cos(angle) * 20; this.vy = Math.sin(angle) * 20;
