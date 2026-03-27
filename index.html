@@ -527,6 +527,7 @@
                     if (dKeys['KeyW'] && this.grounded && this.state !== 'slash') { this.vy = -17; this.grounded = false; this.createDust(8); }
                     if (dKeys['Space'] && this.state !== 'slash' && this.stamina >= 30) {
                         this.state = 'slash'; this.slashTime = 0; this.stamina -= 30; this.performAttack();
+                        if (bgMusic.paused) bgMusic.play();
                     }
                 }
                 this.vx *= FRICTION; this.vy += gravity; this.x += this.vx; this.y += this.vy;
